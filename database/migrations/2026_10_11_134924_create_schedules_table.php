@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('title')->nullable();
             $table->enum('type', ['weekly', 'single']);
-            $table->unsignedTinyInteger('day_of_week')->nullable();
+            $table->unsignedTinyInteger('day_of_week')->nullable(); // 0=日曜〜6=土曜（PHPのdate('w')と同じ）。毎週の予定のみ
             $table->date('date')->nullable();
             $table->time('start_time');
             $table->time('end_time');

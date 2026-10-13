@@ -17,6 +17,10 @@ class AvailabilityCalculatorTest extends TestCase
 
     private const YESTERDAY = '2026-10-18 07:00:00';
 
+    private const SEVEN_DAYS_AGO = '2026-10-12 07:00:00';
+
+    private const EIGHT_DAYS_AGO = '2026-10-11 07:00:00';
+
     /** Issue #3 で決まった値（1時間・8:00〜22:00・7日）で、計算の部品を作る */
     private function calculator(int $slotMinutes = 60): AvailabilityCalculator
     {
@@ -37,6 +41,38 @@ class AvailabilityCalculatorTest extends TestCase
         }
 
         return $busySlots;
+    }
+
+    /** 表の全部の枠で、チームの判定に出てくる値を重複なしで返す（全部が不明なら ['unknown']） */
+    private function teamStatuses(array $table): array
+    {
+        $statuses = [];
+
+        foreach ($table as $slots) {
+            foreach ($slots as $slot) {
+                $statuses[$slot['team']] = true;
+            }
+        }
+
+        return array_keys($statuses);
+    }
+
+    /** その人が、表の全部の枠でどの判定に入っているかを重複なしで返す（全部が不明なら ['unknown']） */
+    private function memberStatuses(array $table, int $id): array
+    {
+        $statuses = [];
+
+        foreach ($table as $slots) {
+            foreach ($slots as $slot) {
+                foreach (['free', 'busy', 'unknown'] as $status) {
+                    if (in_array($id, $slot[$status], true)) {
+                        $statuses[$status] = true;
+                    }
+                }
+            }
+        }
+
+        return array_keys($statuses);
     }
 
     /** 完了の条件 1：全員が昨日更新・予定は0件 → 全部の枠が 空き */
@@ -129,5 +165,66 @@ class AvailabilityCalculatorTest extends TestCase
         // date が '2026-10-21 00:00:00' の形で来ても、同じ結果になる
         $schedules[0]['date'] = '2026-10-21 00:00:00';
         $this->assertSame($table, $this->calculator()->calculate($members, $schedules, self::FIRST_DATE, self::NOW));
+    }
+
+    /** 完了の条件 4：1人の更新が8日前 → その人は全部の枠で 不明。埋まりの人がいない枠は、チームも 不明 */
+    public function test_member_is_unknown_when_the_last_update_is_older_than_the_limit(): void
+    {
+        $members = [
+            ['id' => 1, 'schedule_updated_at' => self::YESTERDAY],
+            ['id' => 2, 'schedule_updated_at' => self::EIGHT_DAYS_AGO],
+        ];
+        // 2番の人（更新が8日前）に予定があっても、予定を見る前に 不明 と決まる
+        $schedules = [
+            ['user_id' => 2, 'type' => 'weekly', 'day_of_week' => 1, 'date' => null, 'start_time' => '09:00', 'end_time' => '10:00'],
+        ];
+
+        $table = $this->calculator()->calculate($members, $schedules, self::FIRST_DATE, self::NOW);
+
+        // 2番の人は全部の枠で 不明、1番の人は全部の枠で 空き
+        $this->assertSame(['unknown'], $this->memberStatuses($table, 2));
+        $this->assertSame(['free'], $this->memberStatuses($table, 1));
+
+        // 埋まりの人がいないので、チームは全部の枠で 不明
+        $this->assertSame(['unknown'], $this->teamStatuses($table));
+
+        // 予定のある月曜 9:00 も、埋まり ではなく 不明
+        $this->assertSame([], $table['2026-10-19']['09:00']['busy']);
+        $this->assertSame([2], $table['2026-10-19']['09:00']['unknown']);
+    }
+
+    /** 完了の条件 5：1人の schedule_updated_at が空（1回も登録していない）→ その人は全部の枠で 不明 */
+    public function test_member_is_unknown_when_they_have_never_registered(): void
+    {
+        $members = [
+            ['id' => 1, 'schedule_updated_at' => self::YESTERDAY],
+            ['id' => 2, 'schedule_updated_at' => null],
+        ];
+
+        $table = $this->calculator()->calculate($members, [], self::FIRST_DATE, self::NOW);
+
+        $this->assertSame(['unknown'], $this->memberStatuses($table, 2));
+        $this->assertSame(['free'], $this->memberStatuses($table, 1));
+        $this->assertSame(['unknown'], $this->teamStatuses($table));
+    }
+
+    /** 完了の条件 9：1人の更新がちょうど7日前 → 不明にしない（7日を超えたら不明） */
+    public function test_member_is_not_unknown_when_the_last_update_is_exactly_at_the_limit(): void
+    {
+        $members = [
+            ['id' => 1, 'schedule_updated_at' => self::YESTERDAY],
+            ['id' => 2, 'schedule_updated_at' => self::SEVEN_DAYS_AGO],
+        ];
+
+        $table = $this->calculator()->calculate($members, [], self::FIRST_DATE, self::NOW);
+
+        // ちょうど7日前（10/12 7:00）は、まだ 空き
+        $this->assertSame(['free'], $this->memberStatuses($table, 2));
+        $this->assertSame(['free'], $this->teamStatuses($table));
+
+        // 1秒でも超えたら（10/12 6:59:59）不明
+        $members[1]['schedule_updated_at'] = '2026-10-12 06:59:59';
+        $table = $this->calculator()->calculate($members, [], self::FIRST_DATE, self::NOW);
+        $this->assertSame(['unknown'], $this->memberStatuses($table, 2));
     }
 }

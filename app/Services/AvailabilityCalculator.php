@@ -46,7 +46,7 @@ class AvailabilityCalculator
                 $people = [self::FREE => [], self::BUSY => [], self::UNKNOWN => []];
 
                 foreach ($members as $member) {
-                    $status = $this->memberStatus($member, $schedules, $date, $slotStart);
+                    $status = $this->memberStatus($member, $schedules, $date, $slotStart, $now);
                     $people[$status][] = $member['id'];
                 }
 
@@ -62,9 +62,13 @@ class AvailabilityCalculator
         return $table;
     }
 
-    /** メンバー1人 × 枠1つの判定。重なる予定が1つでもあれば「埋まり」（不明は後の回で足す） */
-    private function memberStatus(array $member, array $schedules, string $date, int $slotStart): string
+    /** メンバー1人 × 枠1つの判定。上から順に見て、最初に当てはまった物で決める（不明 → 埋まり → 空き） */
+    private function memberStatus(array $member, array $schedules, string $date, int $slotStart, string $now): string
     {
+        if ($this->isUnknown($member, $now)) {
+            return self::UNKNOWN; // 予定を見る前に決まる
+        }
+
         $slotEnd = $slotStart + $this->slotMinutes;
 
         foreach ($schedules as $schedule) {
@@ -85,6 +89,19 @@ class AvailabilityCalculator
         return self::FREE;
     }
 
+    /** 予定が今も合っているか分からない人か。1回も登録していない人と、最後の更新から日数を超えた人 */
+    private function isUnknown(array $member, string $now): bool
+    {
+        if (empty($member['schedule_updated_at'])) {
+            return true; // 1回も登録していない
+        }
+
+        // 秒で比べる。ちょうど7日（604800秒）は不明にしない。1秒でも超えたら不明
+        $seconds = (new DateTimeImmutable($now))->getTimestamp() - (new DateTimeImmutable($member['schedule_updated_at']))->getTimestamp();
+
+        return $seconds > $this->staleDays * 86400;
+    }
+
     /** その予定が、その日付に当たるか。毎週の予定は曜日で、単発の予定は日付で比べる */
     private function isOnDate(array $schedule, string $date): bool
     {
@@ -101,11 +118,15 @@ class AvailabilityCalculator
         return false;
     }
 
-    /** チームとしての判定。埋まりの人が1人でもいれば「埋まり」（不明は後の回で足す） */
+    /** チームとしての判定。埋まりが1人でも → 埋まり／埋まりがいなくて不明が1人でも → 不明／全員が空き → 空き */
     private function teamStatus(array $people): string
     {
         if ($people[self::BUSY] !== []) {
             return self::BUSY;
+        }
+
+        if ($people[self::UNKNOWN] !== []) {
+            return self::UNKNOWN;
         }
 
         return self::FREE;

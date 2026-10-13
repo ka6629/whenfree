@@ -46,12 +46,12 @@ class AvailabilityCalculator
                 $people = [self::FREE => [], self::BUSY => [], self::UNKNOWN => []];
 
                 foreach ($members as $member) {
-                    $status = $this->memberStatus();
+                    $status = $this->memberStatus($member, $schedules, $date, $slotStart);
                     $people[$status][] = $member['id'];
                 }
 
                 $table[$date][$this->toTime($slotStart)] = [
-                    'team' => $this->teamStatus(),
+                    'team' => $this->teamStatus($people),
                     'free' => $people[self::FREE],
                     'busy' => $people[self::BUSY],
                     'unknown' => $people[self::UNKNOWN],
@@ -62,15 +62,46 @@ class AvailabilityCalculator
         return $table;
     }
 
-    /** メンバー1人 × 枠1つの判定。今は全員「空き」（埋まり・不明は次の回から足す） */
-    private function memberStatus(): string
+    /** メンバー1人 × 枠1つの判定。重なる予定が1つでもあれば「埋まり」（不明は後の回で足す） */
+    private function memberStatus(array $member, array $schedules, string $date, int $slotStart): string
     {
+        $slotEnd = $slotStart + $this->slotMinutes;
+
+        foreach ($schedules as $schedule) {
+            if ((int) $schedule['user_id'] !== (int) $member['id']) {
+                continue; // ほかの人の予定
+            }
+
+            if (! $this->isOnDate($schedule, $date)) {
+                continue; // この日の予定ではない
+            }
+
+            // 重なる ＝ 予定の開始 ＜ 枠の終わり かつ 予定の終わり ＞ 枠の始まり
+            if ($this->toMinutes($schedule['start_time']) < $slotEnd && $this->toMinutes($schedule['end_time']) > $slotStart) {
+                return self::BUSY;
+            }
+        }
+
         return self::FREE;
     }
 
-    /** チームとしての判定。今はいつも「空き」（埋まり・不明は次の回から足す） */
-    private function teamStatus(): string
+    /** その予定が、その日付に当たるか。毎週の予定は曜日で比べる（0＝日曜〜6＝土曜）。単発の予定は次の回で足す */
+    private function isOnDate(array $schedule, string $date): bool
     {
+        if ($schedule['type'] === 'weekly') {
+            return (int) $schedule['day_of_week'] === (int) (new DateTimeImmutable($date))->format('w');
+        }
+
+        return false;
+    }
+
+    /** チームとしての判定。埋まりの人が1人でもいれば「埋まり」（不明は後の回で足す） */
+    private function teamStatus(array $people): string
+    {
+        if ($people[self::BUSY] !== []) {
+            return self::BUSY;
+        }
+
         return self::FREE;
     }
 

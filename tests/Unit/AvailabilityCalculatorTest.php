@@ -54,4 +54,33 @@ class AvailabilityCalculatorTest extends TestCase
             }
         }
     }
+
+    /** 完了の条件 2：1人に「毎週月曜 9:00〜10:30」 → 月曜の 9:00・10:00 が 埋まり。11:00 は 空き。火曜は 空き */
+    public function test_weekly_schedule_makes_the_slots_busy_on_that_weekday(): void
+    {
+        $members = [
+            ['id' => 1, 'schedule_updated_at' => self::YESTERDAY],
+            ['id' => 2, 'schedule_updated_at' => self::YESTERDAY],
+        ];
+        $schedules = [
+            ['user_id' => 1, 'type' => 'weekly', 'day_of_week' => 1, 'date' => null, 'start_time' => '09:00', 'end_time' => '10:30'],
+        ];
+
+        $table = $this->calculator()->calculate($members, $schedules, self::FIRST_DATE, self::NOW);
+
+        // 月曜（10/19）の 9:00 と 10:00：1番の人が埋まり → チームも埋まり
+        foreach (['09:00', '10:00'] as $time) {
+            $this->assertSame('busy', $table['2026-10-19'][$time]['team'], $time);
+            $this->assertSame([1], $table['2026-10-19'][$time]['busy'], $time);
+            $this->assertSame([2], $table['2026-10-19'][$time]['free'], $time);
+        }
+
+        // 予定の前（8:00）と後（11:00）は 空き
+        $this->assertSame('free', $table['2026-10-19']['08:00']['team']);
+        $this->assertSame('free', $table['2026-10-19']['11:00']['team']);
+
+        // 火曜（10/20）は、同じ時刻でも 空き
+        $this->assertSame('free', $table['2026-10-20']['09:00']['team']);
+        $this->assertSame([1, 2], $table['2026-10-20']['09:00']['free']);
+    }
 }

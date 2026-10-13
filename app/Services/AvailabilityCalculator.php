@@ -85,11 +85,17 @@ class AvailabilityCalculator
         return self::FREE;
     }
 
-    /** その予定が、その日付に当たるか。毎週の予定は曜日で比べる（0＝日曜〜6＝土曜）。単発の予定は次の回で足す */
+    /** その予定が、その日付に当たるか。毎週の予定は曜日で、単発の予定は日付で比べる */
     private function isOnDate(array $schedule, string $date): bool
     {
         if ($schedule['type'] === 'weekly') {
+            // 0＝日曜〜6＝土曜
             return (int) $schedule['day_of_week'] === (int) (new DateTimeImmutable($date))->format('w');
+        }
+
+        if ($schedule['type'] === 'single') {
+            // '2026-10-21' でも '2026-10-21 00:00:00' でも通るよう、先頭の10文字で比べる
+            return substr((string) $schedule['date'], 0, 10) === $date;
         }
 
         return false;

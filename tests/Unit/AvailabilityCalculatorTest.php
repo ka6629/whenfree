@@ -23,6 +23,22 @@ class AvailabilityCalculatorTest extends TestCase
         return new AvailabilityCalculator($slotMinutes, '08:00', '22:00', 7);
     }
 
+    /** 表の中で、チームが 埋まり の枠を「日付 時刻」の形で並べて返す */
+    private function busySlots(array $table): array
+    {
+        $busySlots = [];
+
+        foreach ($table as $date => $slots) {
+            foreach ($slots as $time => $slot) {
+                if ($slot['team'] === 'busy') {
+                    $busySlots[] = "{$date} {$time}";
+                }
+            }
+        }
+
+        return $busySlots;
+    }
+
     /** 完了の条件 1：全員が昨日更新・予定は0件 → 全部の枠が 空き */
     public function test_everyone_is_free_when_there_are_no_schedules(): void
     {
@@ -82,5 +98,36 @@ class AvailabilityCalculatorTest extends TestCase
         // 火曜（10/20）は、同じ時刻でも 空き
         $this->assertSame('free', $table['2026-10-20']['09:00']['team']);
         $this->assertSame([1, 2], $table['2026-10-20']['09:00']['free']);
+    }
+
+    /** 完了の条件 3：1人に「単発 10/21 13:00〜14:00」 → 10/21 の 13:00 だけ 埋まり。次の週の表には出ない */
+    public function test_single_schedule_makes_the_slot_busy_only_on_that_date(): void
+    {
+        $members = [
+            ['id' => 1, 'schedule_updated_at' => self::YESTERDAY],
+            ['id' => 2, 'schedule_updated_at' => self::YESTERDAY],
+        ];
+        $schedules = [
+            ['user_id' => 1, 'type' => 'single', 'day_of_week' => null, 'date' => '2026-10-21', 'start_time' => '13:00:00', 'end_time' => '14:00:00'],
+        ];
+
+        $table = $this->calculator()->calculate($members, $schedules, self::FIRST_DATE, self::NOW);
+
+        // 10/21（水）の 13:00：1番の人が埋まり → チームも埋まり
+        $this->assertSame('busy', $table['2026-10-21']['13:00']['team']);
+        $this->assertSame([1], $table['2026-10-21']['13:00']['busy']);
+        $this->assertSame([2], $table['2026-10-21']['13:00']['free']);
+
+        // この週の表で、埋まりの枠はその1つだけ（前後の時刻も、前後の日も 空き）
+        $this->assertSame(['2026-10-21 13:00'], $this->busySlots($table));
+
+        // 次の週の表（10/26〜11/1）には出ない
+        $nextWeek = $this->calculator()->calculate($members, $schedules, '2026-10-26', self::NOW);
+        $this->assertSame('2026-10-26', array_key_first($nextWeek));
+        $this->assertSame([], $this->busySlots($nextWeek));
+
+        // date が '2026-10-21 00:00:00' の形で来ても、同じ結果になる
+        $schedules[0]['date'] = '2026-10-21 00:00:00';
+        $this->assertSame($table, $this->calculator()->calculate($members, $schedules, self::FIRST_DATE, self::NOW));
     }
 }

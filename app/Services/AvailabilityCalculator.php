@@ -80,6 +80,10 @@ class AvailabilityCalculator
                 continue; // この日の予定ではない
             }
 
+            if ($this->toMinutes($schedule['end_time']) <= $this->toMinutes($schedule['start_time'])) {
+                continue; // 終了が開始以前の予定（日をまたぐ予定など）は、最初の版では判定に入れない
+            }
+
             // 重なる ＝ 予定の開始 ＜ 枠の終わり かつ 予定の終わり ＞ 枠の始まり
             if ($this->toMinutes($schedule['start_time']) < $slotEnd && $this->toMinutes($schedule['end_time']) > $slotStart) {
                 return self::BUSY;

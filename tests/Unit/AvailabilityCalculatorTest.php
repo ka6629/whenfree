@@ -323,4 +323,30 @@ class AvailabilityCalculatorTest extends TestCase
         // 月曜は6日目の 10/19。埋まりはその日の 9:00・10:00 だけ
         $this->assertSame(['2026-10-19 09:00', '2026-10-19 10:00'], $this->busySlots($table));
     }
+
+    /** 完了の条件 10：終了が開始以前の予定（単発 10/21 21:00〜1:00）→ 判定に入れない（10/21 の 21:00 は 空き） */
+    public function test_schedule_that_ends_before_it_starts_is_ignored(): void
+    {
+        $members = [
+            ['id' => 1, 'schedule_updated_at' => self::YESTERDAY],
+            ['id' => 2, 'schedule_updated_at' => self::YESTERDAY],
+        ];
+        $schedules = [
+            // 日をまたぐ予定：10/21（水）21:00〜1:00
+            ['user_id' => 1, 'type' => 'single', 'day_of_week' => null, 'date' => '2026-10-21', 'start_time' => '21:00', 'end_time' => '01:00'],
+        ];
+
+        $table = $this->calculator()->calculate($members, $schedules, self::FIRST_DATE, self::NOW);
+
+        $this->assertSame('free', $table['2026-10-21']['21:00']['team']);
+        $this->assertSame([1, 2], $table['2026-10-21']['21:00']['free']);
+        $this->assertSame([], $this->busySlots($table));
+
+        // 終了が開始より前で、同じ枠の中にある予定（火曜 9:20〜9:10）も入れない
+        // この1行が無いと「開始 ＜ 枠の終わり かつ 終わり ＞ 枠の始まり」に当てはまって 9:00 が埋まりになる
+        $schedules[] = ['user_id' => 2, 'type' => 'weekly', 'day_of_week' => 2, 'date' => null, 'start_time' => '09:20', 'end_time' => '09:10'];
+        $table = $this->calculator()->calculate($members, $schedules, self::FIRST_DATE, self::NOW);
+
+        $this->assertSame([], $this->busySlots($table));
+    }
 }

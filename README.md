@@ -1,3 +1,14 @@
+## 初回セットアップ
+
+```
+composer install
+cp .env.example .env
+php artisan key:generate
+npm install
+npm run build
+php artisan migrate
+```
+
 ## 動かすのに必要なもの
 - PHP 8.4.1 以上
 - Composer

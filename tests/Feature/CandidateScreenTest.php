@@ -166,6 +166,97 @@ class CandidateScreenTest extends TestCase
         $this->post("/candidates/{$candidate->id}/answer", ['answer' => Response::YES])->assertRedirect('/login');
     }
 
+    /** #19 完成条件：メンバーがフォームから候補を作ると、一覧に open の候補が出る */
+    public function test_member_can_create_a_candidate_from_the_form(): void
+    {
+        [$team, $members] = $this->teamWithMembers(3);
+
+        $this->actingAs($members[0])
+            ->post("/teams/{$team->id}/candidates", [
+                'date' => '2026-10-20',
+                'start_time' => '09:00',
+                'end_time' => '10:00',
+                'title' => '中間発表の練習',
+                'needed_count' => '2',
+            ])
+            ->assertRedirect("/teams/{$team->id}/candidates");
+
+        $candidate = Candidate::sole();
+        $this->assertSame(Candidate::OPEN, $candidate->status);
+        $this->assertSame($members[0]->id, $candidate->created_by);
+        $this->assertSame(2, $candidate->needed_count);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}/candidates")
+            ->assertSee('中間発表の練習')
+            ->assertSee('募集中');
+    }
+
+    /** #19 完成条件：タイトルと必要な人数は、空でも作れる */
+    public function test_title_and_needed_count_can_be_empty(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+
+        $this->actingAs($members[0])
+            ->post("/teams/{$team->id}/candidates", [
+                'date' => '2026-10-19',
+                'start_time' => '18:00',
+                'end_time' => '19:00',
+                'title' => '',
+                'needed_count' => '',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $candidate = Candidate::sole();
+        $this->assertNull($candidate->title);
+        $this->assertNull($candidate->needed_count);
+    }
+
+    /** #19 完成条件：決まりに合わないときは、作れずにエラーが出る */
+    public function test_cannot_create_a_candidate_that_breaks_the_rules(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $valid = ['date' => '2026-10-20', 'start_time' => '09:00', 'end_time' => '10:00'];
+
+        $cases = [
+            'date' => ['date' => '2026-10-18'],             // 過去の日付
+            'end_time' => ['end_time' => '09:00'],          // 終了が開始と同じ
+            'needed_count' => ['needed_count' => '3'],      // チームの人数より多い
+        ];
+
+        foreach ($cases as $errorKey => $change) {
+            $this->actingAs($members[0])
+                ->post("/teams/{$team->id}/candidates", [...$valid, ...$change])
+                ->assertSessionHasErrors($errorKey);
+        }
+
+        $this->assertSame(0, Candidate::count());
+    }
+
+    /** #19 完成条件：日付や時刻を入れていないときは、作れずにエラーが出る */
+    public function test_date_and_times_are_required(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+
+        $this->actingAs($members[0])
+            ->post("/teams/{$team->id}/candidates", ['title' => '日付なし'])
+            ->assertSessionHasErrors(['date', 'start_time', 'end_time']);
+
+        $this->assertSame(0, Candidate::count());
+    }
+
+    /** #19 完成条件：メンバーでない人は、候補を作れない（403） */
+    public function test_non_member_cannot_create_a_candidate(): void
+    {
+        [$team] = $this->teamWithMembers(2);
+
+        $this->actingAs(User::factory()->create())
+            ->post("/teams/{$team->id}/candidates", ['date' => '2026-10-20', 'start_time' => '09:00', 'end_time' => '10:00'])
+            ->assertForbidden();
+
+        $this->assertSame(0, Candidate::count());
+    }
+
     /**
      * メンバーが $count 人いるチームを作る。
      *

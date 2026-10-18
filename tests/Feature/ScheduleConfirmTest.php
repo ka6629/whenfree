@@ -59,6 +59,29 @@ class ScheduleConfirmTest extends TestCase
         $this->post(route('schedules.confirm'))->assertRedirect(route('login'));
     }
 
+    /** 完成条件：「自分の予定」の画面にボタンが出る */
+    public function test_schedule_page_shows_confirm_button(): void
+    {
+        $a = $this->user('Aさん', '2026-10-11 07:00:00');
+
+        $this->actingAs($a)->get(route('schedules.index'))
+            ->assertOk()
+            ->assertSee('予定は変わっていません')
+            ->assertSee('action="'.route('schedules.confirm').'"', false);
+    }
+
+    /** 押した後に戻った画面で、最後に更新した日が今の日時になっている */
+    public function test_schedule_page_shows_new_date_after_confirm(): void
+    {
+        $a = $this->user('Aさん', '2026-10-11 07:00:00');
+
+        $this->actingAs($a)->followingRedirects()->post(route('schedules.confirm'))
+            ->assertOk()
+            ->assertSee('予定は変わっていないことを記録しました。')
+            ->assertSee('最後に更新した日：2026/10/19 07:00')
+            ->assertDontSee('2026/10/11 07:00');
+    }
+
     private function user(string $name, ?string $updatedAt): User
     {
         $user = User::factory()->create(['name' => $name]);

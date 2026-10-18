@@ -81,7 +81,7 @@
                             <span class="text-sm px-2 py-1 rounded bg-gray-100">{{ $statusLabels[$candidate->status] }}</span>
                         </div>
 
-                        <p class="text-sm text-gray-500 mt-2">あと{{ $candidate->remainingCount() }}人の返事待ち</p>
+                        <p class="text-sm text-gray-500 mt-2">あと<span data-remaining="{{ $candidate->id }}">{{ $candidate->remainingCount() }}</span>人の返事待ち</p>
                         <p class="text-sm mt-1">
                             今の返事：{{ $answerLabels[$myAnswers[$candidate->id] ?? ''] ?? 'まだ' }}
                         </p>
@@ -110,4 +110,28 @@
 
         </div>
     </div>
+
+    {{-- 10秒おきに「あと◯人の返事待ち」だけを取りに行って書きかえる（Issue #24）。ページは読み込み直さないので、フォームの入力は消えない --}}
+    <script>
+        setInterval(async () => {
+            if (document.hidden) {
+                return; // ほかのタブを見ている間は取りに行かない
+            }
+            try {
+                const response = await fetch(@json(route('candidates.counts', $team)), { headers: { Accept: 'application/json' } });
+                if (!response.ok) {
+                    return;
+                }
+                const counts = await response.json();
+                document.querySelectorAll('[data-remaining]').forEach((element) => {
+                    const count = counts[element.dataset.remaining];
+                    if (count !== undefined) {
+                        element.textContent = count;
+                    }
+                });
+            } catch (error) {
+                // つながらないときは、次の10秒後にまた試す
+            }
+        }, 10000);
+    </script>
 </x-app-layout>

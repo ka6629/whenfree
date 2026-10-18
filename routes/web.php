@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CandidateController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TeamController;
@@ -20,6 +21,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::post('/teams/join', [TeamController::class, 'join'])->name('teams.join');
     Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
+});
+
+// 候補と返事（担当C）
+Route::middleware('auth')->group(function () {
+    Route::get('/teams/{team}/candidates', [CandidateController::class, 'index'])->name('candidates.index');
+    Route::post('/candidates/{candidate}/answer', [CandidateController::class, 'answer'])->name('candidates.answer');
 });
 
 require __DIR__.'/auth.php';

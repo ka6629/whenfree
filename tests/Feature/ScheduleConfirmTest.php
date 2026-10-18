@@ -82,6 +82,30 @@ class ScheduleConfirmTest extends TestCase
             ->assertDontSee('2026/10/11 07:00');
     }
 
+    /** 予定を1回も登録していない人には、ボタンを出さない（PR #55 の相談1） */
+    public function test_schedule_page_hides_confirm_button_for_unregistered_user(): void
+    {
+        $c = $this->user('Cさん', null);
+
+        $this->actingAs($c)->get(route('schedules.index'))
+            ->assertOk()
+            ->assertSee('最後に更新した日：まだ登録していません')
+            ->assertDontSee('予定は変わっていません')
+            ->assertDontSee('action="'.route('schedules.confirm').'"', false);
+    }
+
+    /** 予定を1回も登録していない人が送っても、最終更新日は入らない（「不明」のまま） */
+    public function test_unregistered_user_cannot_confirm(): void
+    {
+        $c = $this->user('Cさん', null);
+
+        $this->actingAs($c)->post(route('schedules.confirm'))
+            ->assertRedirect(route('schedules.index'))
+            ->assertSessionHas('status', '先に予定を登録してください。');
+
+        $this->assertNull($c->fresh()->schedule_updated_at);
+    }
+
     private function user(string $name, ?string $updatedAt): User
     {
         $user = User::factory()->create(['name' => $name]);

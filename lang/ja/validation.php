@@ -2,6 +2,7 @@
 
 return [
     'required' => ':attributeを入力してください。',
+    'required_if' => ':otherが:valueのときは、:attributeを入力してください。',
     'string' => ':attributeは文字で入力してください。',
     'email' => ':attributeの形式が正しくありません。',
     'lowercase' => ':attributeは小文字で入力してください。',
@@ -44,5 +45,12 @@ return [
         'end_time' => '終了の時刻',
         'invite_code' => '招待コード',
         'needed_count' => '必要な人数',
+        'type' => '種類',
+    ],
+        'values' => [
+        'type' => [
+            'weekly' => '毎週',
+            'single' => '単発',
+        ],
     ],
 ];

@@ -27,6 +27,7 @@
 
             <div class="bg-white p-6 shadow sm:rounded-lg">
                 <a href="{{ route('candidates.index', $team) }}" class="text-indigo-600 hover:underline">候補を見る →</a>
+                <a href="{{ route('teams.week', $team) }}" class="block mt-2 text-indigo-600 hover:underline">チームの1週間を見る →</a>
             </div>
 
             <a href="{{ route('teams.index') }}" class="text-indigo-600 hover:underline">← チーム一覧へ</a>

@@ -95,6 +95,37 @@ class CandidateService
     }
 
     /**
+     * 募集中の候補を、確定か取り消しにする（Issue #23）。
+     * できるのは候補を作った人だけ。確定・取り消しにした候補は、元には戻せない。
+     *
+     * @param  string  $status  Candidate::DECIDED か Candidate::CANCELED
+     *
+     * @throws AuthorizationException
+     * @throws ValidationException
+     */
+    public function changeStatus(Candidate $candidate, User $user, string $status): Candidate
+    {
+        if ((int) $candidate->created_by !== $user->id) {
+            throw new AuthorizationException('候補を作った人だけが、確定・取り消しにできます。');
+        }
+
+        if (! in_array($status, [Candidate::DECIDED, Candidate::CANCELED], true)) {
+            throw ValidationException::withMessages(['status' => '「確定」か「取り消し」を選んでください。']);
+        }
+
+        // 同時に押されたときに後の操作で上書きしないよう、「今も募集中なら」を条件にして変える
+        $updated = Candidate::whereKey($candidate->id)
+            ->where('status', Candidate::OPEN)
+            ->update(['status' => $status]);
+
+        if ($updated === 0) {
+            throw ValidationException::withMessages(['status' => '募集中の候補だけ、確定・取り消しにできます。']);
+        }
+
+        return $candidate->refresh();
+    }
+
+    /**
      * Team のリレーションが入るまでは、remainingCount() と同じく team_user を直接見る。
      *
      * @throws AuthorizationException

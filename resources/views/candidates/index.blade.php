@@ -23,6 +23,7 @@
                 <div class="bg-green-50 text-green-700 p-4 rounded">{{ session('status') }}</div>
             @endif
             <x-input-error :messages="$errors->get('answer')" />
+            <x-input-error :messages="$errors->get('status')" />
 
             <div class="bg-white p-6 shadow sm:rounded-lg">
                 <h3 class="font-semibold mb-4">候補を作る</h3>
@@ -85,6 +86,15 @@
                                 @csrf
                                 <x-primary-button name="answer" value="{{ \App\Models\Response::YES }}">はい</x-primary-button>
                                 <x-secondary-button type="submit" name="answer" value="{{ \App\Models\Response::NO }}">いいえ</x-secondary-button>
+                            </form>
+                        @endif
+
+                        {{-- 確定・取り消しは、候補を作った人だけ（Issue #23） --}}
+                        @if ($candidate->status === \App\Models\Candidate::OPEN && (int) $candidate->created_by === auth()->id())
+                            <form method="POST" action="{{ route('candidates.status', $candidate) }}" class="flex gap-2 mt-2">
+                                @csrf
+                                <x-secondary-button type="submit" name="status" value="{{ \App\Models\Candidate::DECIDED }}">確定する</x-secondary-button>
+                                <x-danger-button name="status" value="{{ \App\Models\Candidate::CANCELED }}">取り消す</x-danger-button>
                             </form>
                         @endif
                     </div>

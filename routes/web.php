@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TeamWeekController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -21,6 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::post('/teams/join', [TeamController::class, 'join'])->name('teams.join');
     Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
+    Route::get('/teams/{team}/week', [TeamWeekController::class, 'show'])->name('teams.week');
     Route::resource('schedules', ScheduleController::class)->except(['create', 'show']);
 });
 

@@ -93,8 +93,11 @@ class AvailabilityCalculator
         return self::FREE;
     }
 
-    /** 予定が今も合っているか分からない人か。1回も登録していない人と、最後の更新から日数を超えた人 */
-    private function isUnknown(array $member, string $now): bool
+    /**
+     * 予定が今も合っているか分からない人か。1回も登録していない人と、最後の更新から日数を超えた人。
+     * メンバーの一覧（TeamWeekService::members）でも同じ決まりを使うので public にしている。
+     */
+    public function isUnknown(array $member, string $now): bool
     {
         if (empty($member['schedule_updated_at'])) {
             return true; // 1回も登録していない

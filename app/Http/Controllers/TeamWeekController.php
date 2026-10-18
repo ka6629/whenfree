@@ -15,7 +15,9 @@ class TeamWeekController extends Controller
 
         $memberCount = $team->users()->count();
         $week = $memberCount > 0 ? $service->forTeam($team) : [];
+        $members = $memberCount > 0 ? $service->members($team) : [];
+        $staleDays = config('whenfree.stale_days');
 
-        return view('teams.week', compact('team', 'memberCount', 'week'));
+        return view('teams.week', compact('team', 'memberCount', 'week', 'members', 'staleDays'));
     }
 }

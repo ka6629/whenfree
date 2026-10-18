@@ -6,6 +6,8 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use App\Models\Candidate;
+use App\Models\Response;
 
 class DashboardTest extends TestCase
 {
@@ -41,5 +43,34 @@ class DashboardTest extends TestCase
         $user = User::factory()->create(['schedule_updated_at' => now()]);
 
         $this->actingAs($user)->get('/dashboard')->assertDontSee('予定を確認してください');
+    }
+        public function test_未回答の候補の数が出る(): void
+    {
+        $user = User::factory()->create(['schedule_updated_at' => now()]);
+        $other = User::factory()->create();
+        $team = Team::create(['name' => 'テスト', 'invite_code' => 'abc123']);
+        $team->users()->attach([$user->id, $other->id]);
+
+        // 募集中・未回答（数える）
+        Candidate::factory()->create(['team_id' => $team->id, 'created_by' => $other->id]);
+        // 募集中・返事済み（数えない）
+        $answered = Candidate::factory()->create(['team_id' => $team->id, 'created_by' => $other->id]);
+        Response::factory()->create(['candidate_id' => $answered->id, 'user_id' => $user->id, 'answer' => 'yes']);
+        // 取り消し（数えない）
+        Candidate::factory()->canceled()->create(['team_id' => $team->id, 'created_by' => $other->id]);
+
+        $this->actingAs($user)->get('/dashboard')->assertSee('未回答 1件');
+    }
+
+    public function test_全部に返事をしたら未回答は出ない(): void
+    {
+        $user = User::factory()->create(['schedule_updated_at' => now()]);
+        $team = Team::create(['name' => 'テスト', 'invite_code' => 'abc123']);
+        $team->users()->attach($user);
+
+        $candidate = Candidate::factory()->create(['team_id' => $team->id, 'created_by' => $user->id]);
+        Response::factory()->create(['candidate_id' => $candidate->id, 'user_id' => $user->id, 'answer' => 'no']);
+
+        $this->actingAs($user)->get('/dashboard')->assertDontSee('未回答');
     }
 }

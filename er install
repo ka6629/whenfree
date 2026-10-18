@@ -1,5 +1,0 @@
-[33mb5e7fee[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mteam/kawashima[m[33m, [m[1;31morigin/develop[m[33m, [m[1;32mdevelop[m[33m)[m Merge pull request #13 from ka6629/auth/kawashima
-[33m6190bf9[m Merge pull request #6 from ka6629/timezone/aoki
-[33m84bd3a3[m[33m ([m[1;31morigin/auth/kawashima[m[33m, [m[1;32mauth/kawashima[m[33m)[m 使っていない @tailwindcss/vite を削除
-[33m0cf881e[m README の初回セットアップ手順に .env 作成とキー生成を追加
-[33md2076c4[m 未ログイン時に /login へ転送されるテストを追加

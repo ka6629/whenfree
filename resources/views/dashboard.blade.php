@@ -37,6 +37,9 @@
                         <div>
                             <a href="{{ route('teams.show', $team) }}" class="font-medium text-indigo-600 hover:underline">{{ $team->name }}</a>
                             <span class="text-sm text-gray-500 ml-2">{{ $team->users_count }}人</span>
+                            @if (($unanswered[$team->id] ?? 0) > 0)
+                            <span class="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">未回答 {{ $unanswered[$team->id] }}件</span>
+                            @endif
                         </div>
                         <a href="{{ route('candidates.index', $team) }}" class="text-sm text-indigo-600 hover:underline">候補を見る →</a>
                     </div>

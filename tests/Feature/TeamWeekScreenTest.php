@@ -56,6 +56,18 @@ class TeamWeekScreenTest extends TestCase
             ->assertRedirect(route('login'));
     }
 
+    /** 完成条件：チームの画面に「チームの1週間を見る →」のリンクがある */
+    public function test_team_page_links_to_team_week(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+
+        $this->actingAs($members[0])
+            ->get(route('teams.show', $team))
+            ->assertOk()
+            ->assertSee('チームの1週間を見る')
+            ->assertSee(route('teams.week', $team));
+    }
+
     /** 完成条件：予定と重なる枠に「埋まり」と出る（ほかの枠は「空き」） */
     public function test_busy_cell_shows_busy_label(): void
     {

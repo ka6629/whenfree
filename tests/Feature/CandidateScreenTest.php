@@ -219,12 +219,14 @@ class CandidateScreenTest extends TestCase
         $valid = ['date' => '2026-10-20', 'start_time' => '09:00', 'end_time' => '10:00'];
 
         $cases = [
-            'date' => ['date' => '2026-10-18'],             // 過去の日付
-            'end_time' => ['end_time' => '09:00'],          // 終了が開始と同じ
-            'needed_count' => ['needed_count' => '3'],      // チームの人数より多い
+            ['date', ['date' => '2026-10-18']],             // 過去の日付
+            ['end_time', ['end_time' => '09:00']],          // 終了が開始と同じ
+            ['needed_count', ['needed_count' => '3']],      // チームの人数より多い
+            ['needed_count', ['needed_count' => '0']],      // 0人
+            ['needed_count', ['needed_count' => '-1']],     // マイナス
         ];
 
-        foreach ($cases as $errorKey => $change) {
+        foreach ($cases as [$errorKey, $change]) {
             $this->actingAs($members[0])
                 ->post("/teams/{$team->id}/candidates", [...$valid, ...$change])
                 ->assertSessionHasErrors($errorKey);

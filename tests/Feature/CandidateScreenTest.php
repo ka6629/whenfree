@@ -380,6 +380,48 @@ class CandidateScreenTest extends TestCase
         $this->assertSame(0, $candidate->responses()->count());
     }
 
+    /** 完成条件（#25）：まだ返事をしていない、募集中の候補の数が出る（確定・取り消し・ほかの人の返事は数えない） */
+    public function test_unanswered_open_candidates_are_counted(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $this->candidate($team);
+        $this->candidate($team);
+        $this->candidate($team, ['status' => Candidate::DECIDED]);
+        $this->candidate($team, ['status' => Candidate::CANCELED]);
+        $answeredByOther = $this->candidate($team);
+        Response::create(['candidate_id' => $answeredByOther->id, 'user_id' => $members[1]->id, 'answer' => Response::YES]);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}/candidates")
+            ->assertSee('まだ返事をしていない候補が3件あります。');
+    }
+
+    /** 完成条件（#25）：返事をすると、数が減る */
+    public function test_unanswered_count_decreases_after_answering(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $candidate = $this->candidate($team);
+        $this->candidate($team);
+
+        $this->actingAs($members[0])
+            ->post("/candidates/{$candidate->id}/answer", ['answer' => Response::NO]);
+
+        $this->get("/teams/{$team->id}/candidates")
+            ->assertSee('まだ返事をしていない候補が1件あります。');
+    }
+
+    /** 完成条件（#25）：返事をしていない候補がないときは、出ない */
+    public function test_unanswered_message_is_hidden_when_all_answered(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $candidate = $this->candidate($team);
+        Response::create(['candidate_id' => $candidate->id, 'user_id' => $members[0]->id, 'answer' => Response::YES]);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}/candidates")
+            ->assertDontSee('まだ返事をしていない候補が');
+    }
+
     /**
      * メンバーが $count 人いるチームを作る。
      *

@@ -93,4 +93,45 @@ class ScheduleTest extends TestCase
 
         $this->assertModelExists($schedule);
     }
+
+    public function test_過去の日付の単発の予定は追加できない(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/schedules', [
+                'type' => 'single', 'date' => now()->subDay()->toDateString(),
+                'start_time' => '10:00', 'end_time' => '12:00',
+            ])
+            ->assertSessionHasErrors('date');
+
+        $this->assertSame(0, $user->schedules()->count());
+    }
+
+    public function test_単発の予定を編集・削除できる(): void
+    {
+        $user = User::factory()->create();
+        $schedule = $user->schedules()->create([
+            'type' => 'single', 'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00', 'end_time' => '12:00',
+        ]);
+
+        $this->actingAs($user)->put("/schedules/{$schedule->id}", [
+            'date' => now()->addDays(2)->toDateString(),
+            'start_time' => '13:00', 'end_time' => '15:00',
+        ]);
+        $this->assertSame('13:00', substr($schedule->fresh()->start_time, 0, 5));
+
+        $this->actingAs($user)->delete("/schedules/{$schedule->id}");
+        $this->assertModelMissing($schedule);
+    }
+
+    public function test_他人の予定の編集画面は開けない(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $schedule = $owner->schedules()->create($this->weekly());
+
+        $this->actingAs($other)->get("/schedules/{$schedule->id}/edit")->assertForbidden();
+    }
 }

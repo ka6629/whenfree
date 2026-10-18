@@ -28,10 +28,10 @@
                             <option value="{{ $i }}" @selected(old('type') === 'weekly' && old('day_of_week') == $i)>{{ $label }}曜</option>
                         @endforeach
                     </select>
-                    <x-text-input type="time" name="start_time" />
+                    <x-text-input type="time" name="start_time" :value="old('type') === 'weekly' ? old('start_time') : ''" />
                     <span>〜</span>
-                    <x-text-input type="time" name="end_time" />
-                    <x-text-input name="title" placeholder="タイトル（任意）" class="flex-1" />
+                    <x-text-input type="time" name="end_time" :value="old('type') === 'weekly' ? old('end_time') : ''" />
+                    <x-text-input name="title" placeholder="タイトル（任意）" class="flex-1" :value="old('type') === 'weekly' ? old('title') : ''" />
                     <x-primary-button>追加</x-primary-button>
                 </form>
                 @if (old('type') === 'weekly')
@@ -64,11 +64,11 @@
                 <form method="POST" action="{{ route('schedules.store') }}" class="flex flex-wrap gap-2 items-center">
                     @csrf
                     <input type="hidden" name="type" value="single">
-                    <x-text-input type="date" name="date" />
-                    <x-text-input type="time" name="start_time" />
+                    <x-text-input type="date" name="date" :value="old('type') === 'single' ? old('date') : ''" />
+                    <x-text-input type="time" name="start_time" :value="old('type') === 'single' ? old('start_time') : ''" />
                     <span>〜</span>
-                    <x-text-input type="time" name="end_time" />
-                    <x-text-input name="title" placeholder="タイトル（任意）" class="flex-1" />
+                    <x-text-input type="time" name="end_time" :value="old('type') === 'single' ? old('end_time') : ''" />
+                    <x-text-input name="title" placeholder="タイトル（任意）" class="flex-1" :value="old('type') === 'single' ? old('title') : ''" />
                     <x-primary-button>追加</x-primary-button>
                 </form>
                 @if (old('type') === 'single')

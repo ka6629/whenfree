@@ -2,8 +2,9 @@
 
 use App\Http\Controllers\CandidateController;
 use App\Http\Controllers\ProfileController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TeamController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
@@ -21,6 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::post('/teams/join', [TeamController::class, 'join'])->name('teams.join');
     Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
+    Route::resource('schedules', ScheduleController::class)->except(['create', 'show']);
 });
 
 // 候補と返事（担当C）

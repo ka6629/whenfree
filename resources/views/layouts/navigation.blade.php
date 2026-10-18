@@ -18,6 +18,9 @@
                     <x-nav-link :href="route('teams.index')" :active="request()->routeIs('teams.*')">
                         チーム
                     </x-nav-link>
+                    <x-nav-link :href="route('schedules.index')" :active="request()->routeIs('schedules.*')">
+                        予定
+                    </x-nav-link>
                 </div>
             </div>
 

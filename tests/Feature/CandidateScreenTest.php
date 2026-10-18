@@ -38,6 +38,20 @@ class CandidateScreenTest extends TestCase
             ->assertSeeInOrder(['1番目', '2番目', '3番目']);
     }
 
+    /** 完成条件（#22）：チームの詳細の画面から、そのチームの候補の一覧に移れる */
+    public function test_team_page_links_to_its_candidates(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        [$otherTeam] = $this->teamWithMembers(2);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}")
+            ->assertOk()
+            ->assertSee('候補を見る')
+            ->assertSee(route('candidates.index', $team))
+            ->assertDontSee(route('candidates.index', $otherTeam));
+    }
+
     /** ほかのチームの候補は出ない */
     public function test_candidates_of_other_teams_are_not_listed(): void
     {

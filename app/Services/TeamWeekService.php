@@ -20,7 +20,7 @@ class TeamWeekService
      */
     public function forTeam(Team $team, ?string $firstDate = null): array
     {
-        $members = $team->users()->get();
+        $members = $team->users()->orderBy('users.id')->get();
 
         // 日時は文字にしてから渡す（date の cast のまま toArray() すると UTC に直され、前の日になる）
         $memberRows = $members->map(fn (User $user) => [

@@ -28,6 +28,7 @@ Route::middleware('auth')->group(function () {
 // 候補と返事（担当C）
 Route::middleware('auth')->group(function () {
     Route::get('/teams/{team}/candidates', [CandidateController::class, 'index'])->name('candidates.index');
+    Route::post('/teams/{team}/candidates', [CandidateController::class, 'store'])->name('candidates.store');
     Route::post('/candidates/{candidate}/answer', [CandidateController::class, 'answer'])->name('candidates.answer');
 });
 

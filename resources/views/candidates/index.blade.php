@@ -25,6 +25,11 @@
             <x-input-error :messages="$errors->get('answer')" />
             <x-input-error :messages="$errors->get('status')" />
 
+            {{-- まだ返事をしていない、募集中の候補の数（Issue #25） --}}
+            @if ($unansweredCount > 0)
+                <div class="bg-yellow-50 text-yellow-800 p-4 rounded">まだ返事をしていない候補が{{ $unansweredCount }}件あります。</div>
+            @endif
+
             <div class="bg-white p-6 shadow sm:rounded-lg">
                 <h3 class="font-semibold mb-4">候補を作る</h3>
                 <form method="POST" action="{{ route('candidates.store', $team) }}" class="space-y-4">

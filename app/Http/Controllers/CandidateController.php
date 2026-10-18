@@ -9,7 +9,7 @@ use App\Services\CandidateService;
 use Illuminate\Http\Request;
 
 /**
- * 候補と返事の画面（Issue #18・#19・#23）。
+ * 候補と返事の画面（Issue #18・#19・#23・#25）。
  *
  * 決まりの確かめは CandidateService に任せる。
  * - メンバーでない → AuthorizationException → 403
@@ -36,7 +36,13 @@ class CandidateController extends Controller
             ->whereIn('candidate_id', $candidates->pluck('id'))
             ->pluck('answer', 'candidate_id');
 
-        return view('candidates.index', compact('team', 'candidates', 'myAnswers'));
+        // まだ返事をしていない、募集中の候補の数（Issue #25）
+        $unansweredCount = $candidates
+            ->where('status', Candidate::OPEN)
+            ->reject(fn (Candidate $candidate) => $myAnswers->has($candidate->id))
+            ->count();
+
+        return view('candidates.index', compact('team', 'candidates', 'myAnswers', 'unansweredCount'));
     }
 
     /**

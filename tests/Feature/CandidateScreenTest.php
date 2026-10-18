@@ -259,6 +259,113 @@ class CandidateScreenTest extends TestCase
         $this->assertSame(0, Candidate::count());
     }
 
+    /** 完成条件（#23）：候補を作った人は、一覧のボタンから確定・取り消しにできる */
+    public function test_creator_can_decide_or_cancel_from_the_list(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $decided = $this->candidate($team, ['created_by' => $members[0]->id]);
+        $canceled = $this->candidate($team, ['created_by' => $members[0]->id]);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}/candidates")
+            ->assertSee(route('candidates.status', $decided))
+            ->assertSee('確定する')
+            ->assertSee('取り消す');
+
+        $this->actingAs($members[0])
+            ->post("/candidates/{$decided->id}/status", ['status' => Candidate::DECIDED])
+            ->assertRedirect("/teams/{$team->id}/candidates")
+            ->assertSessionHas('status', '候補を確定しました。');
+
+        $this->actingAs($members[0])
+            ->post("/candidates/{$canceled->id}/status", ['status' => Candidate::CANCELED])
+            ->assertSessionHas('status', '候補を取り消しました。');
+
+        $this->assertSame(Candidate::DECIDED, $decided->fresh()->status);
+        $this->assertSame(Candidate::CANCELED, $canceled->fresh()->status);
+    }
+
+    /** 完成条件（#23）：候補を作った人のほかは、確定・取り消しにできない（403・ボタンも出ない） */
+    public function test_others_cannot_decide_or_cancel(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $candidate = $this->candidate($team, ['created_by' => $members[0]->id]);
+
+        $this->actingAs($members[1])
+            ->get("/teams/{$team->id}/candidates")
+            ->assertDontSee(route('candidates.status', $candidate));
+
+        $this->actingAs($members[1])
+            ->post("/candidates/{$candidate->id}/status", ['status' => Candidate::DECIDED])
+            ->assertForbidden();
+
+        $this->actingAs(User::factory()->create())
+            ->post("/candidates/{$candidate->id}/status", ['status' => Candidate::CANCELED])
+            ->assertForbidden();
+
+        $this->assertSame(Candidate::OPEN, $candidate->fresh()->status);
+    }
+
+    /** 完成条件（#23）：一覧で候補の状態が分かり、募集中でない候補にはボタンが出ない */
+    public function test_list_shows_status_and_hides_buttons_when_not_open(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $this->candidate($team, ['created_by' => $members[0]->id, 'date' => '2026-10-20', 'status' => Candidate::OPEN]);
+        $decided = $this->candidate($team, ['created_by' => $members[0]->id, 'date' => '2026-10-21', 'status' => Candidate::DECIDED]);
+        $canceled = $this->candidate($team, ['created_by' => $members[0]->id, 'date' => '2026-10-22', 'status' => Candidate::CANCELED]);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}/candidates")
+            ->assertSeeInOrder(['募集中', '確定', '取り消し'])
+            ->assertDontSee(route('candidates.status', $decided))
+            ->assertDontSee(route('candidates.status', $canceled))
+            ->assertDontSee(route('candidates.answer', $canceled));
+    }
+
+    /** 確定した候補を取り消しにはできない（エラーが出て、状態は変わらない） */
+    public function test_cannot_change_a_decided_candidate(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $candidate = $this->candidate($team, ['created_by' => $members[0]->id, 'status' => Candidate::DECIDED]);
+
+        $this->actingAs($members[0])
+            ->post("/candidates/{$candidate->id}/status", ['status' => Candidate::CANCELED])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame(Candidate::DECIDED, $candidate->fresh()->status);
+    }
+
+    /** 状態に配列などが送られても 500 にならず、入力のエラーになる */
+    public function test_status_must_be_a_string(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $candidate = $this->candidate($team, ['created_by' => $members[0]->id]);
+
+        $this->actingAs($members[0])
+            ->post("/candidates/{$candidate->id}/status", ['status' => [Candidate::DECIDED]])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame(Candidate::OPEN, $candidate->fresh()->status);
+
+        // 作った人でなければ、入力が正しくなくても 403 になる
+        $this->actingAs($members[1])
+            ->post("/candidates/{$candidate->id}/status", ['status' => [Candidate::DECIDED]])
+            ->assertForbidden();
+    }
+
+    /** 返事に配列などが送られても 500 にならず、入力のエラーになる */
+    public function test_answer_must_be_a_string(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $candidate = $this->candidate($team);
+
+        $this->actingAs($members[0])
+            ->post("/candidates/{$candidate->id}/answer", ['answer' => [Response::YES]])
+            ->assertSessionHasErrors('answer');
+
+        $this->assertSame(0, $candidate->responses()->count());
+    }
+
     /**
      * メンバーが $count 人いるチームを作る。
      *

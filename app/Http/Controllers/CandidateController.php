@@ -9,7 +9,7 @@ use App\Services\CandidateService;
 use Illuminate\Http\Request;
 
 /**
- * 候補と返事の画面（Issue #18・#19）。
+ * 候補と返事の画面（Issue #18・#19・#23）。
  *
  * 決まりの確かめは CandidateService に任せる。
  * - メンバーでない → AuthorizationException → 403
@@ -77,9 +77,31 @@ class CandidateController extends Controller
      */
     public function answer(Request $request, Candidate $candidate)
     {
-        $this->service->answer($candidate, $request->user(), (string) $request->input('answer'));
+        $this->service->answer($candidate, $request->user(), $this->stringInput($request, 'answer'));
 
         return redirect()->route('candidates.index', $candidate->team_id)
             ->with('status', '返事をしました。');
+    }
+
+    /**
+     * 候補を確定・取り消しにする（Issue #23）。
+     */
+    public function changeStatus(Request $request, Candidate $candidate)
+    {
+        $this->service->changeStatus($candidate, $request->user(), $this->stringInput($request, 'status'));
+
+        return redirect()->route('candidates.index', $candidate->team_id)
+            ->with('status', $candidate->status === Candidate::DECIDED ? '候補を確定しました。' : '候補を取り消しました。');
+    }
+
+    /**
+     * 配列などが送られても 500 にならないよう、文字列でなければ空にする。
+     * 空のときは CandidateService が（メンバーかどうか等を確かめた後で）入力のエラーにする。
+     */
+    private function stringInput(Request $request, string $key): string
+    {
+        $value = $request->input($key);
+
+        return is_string($value) ? $value : '';
     }
 }

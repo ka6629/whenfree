@@ -28,6 +28,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/teams/{team}/candidates', [CandidateController::class, 'index'])->name('candidates.index');
     Route::post('/teams/{team}/candidates', [CandidateController::class, 'store'])->name('candidates.store');
     Route::post('/candidates/{candidate}/answer', [CandidateController::class, 'answer'])->name('candidates.answer');
+    Route::post('/candidates/{candidate}/status', [CandidateController::class, 'changeStatus'])->name('candidates.status');
 });
 
 require __DIR__.'/auth.php';

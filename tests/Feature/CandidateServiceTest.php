@@ -191,6 +191,58 @@ class CandidateServiceTest extends TestCase
         $this->assertSame(Response::YES, $this->answerOf($candidate, $members[1]));
     }
 
+    /** 完成条件（#23）：候補を作った人は、募集中の候補を確定・取り消しにできる */
+    public function test_creator_can_decide_or_cancel_an_open_candidate(): void
+    {
+        [$candidate, $members] = $this->candidateWithMembers(3);
+        $other = Candidate::factory()->create(['team_id' => $candidate->team_id, 'created_by' => $members[0]->id]);
+
+        $this->service->changeStatus($candidate, $members[0], Candidate::DECIDED);
+        $this->service->changeStatus($other, $members[0], Candidate::CANCELED);
+
+        $this->assertSame(Candidate::DECIDED, $candidate->fresh()->status);
+        $this->assertSame(Candidate::CANCELED, $other->fresh()->status);
+    }
+
+    /** 完成条件（#23）：候補を作った人のほかは、メンバーでも確定・取り消しにできない */
+    public function test_others_cannot_decide_or_cancel(): void
+    {
+        [$candidate, $members] = $this->candidateWithMembers(3);
+
+        $this->assertThrowsWithoutSaving(AuthorizationException::class, fn () => $this->service->changeStatus($candidate, $members[1], Candidate::DECIDED));
+        $this->assertThrowsWithoutSaving(AuthorizationException::class, fn () => $this->service->changeStatus($candidate, User::factory()->create(), Candidate::CANCELED));
+    }
+
+    /** 確定・取り消しにした候補は、元にも、もう一方にも変えられない */
+    public function test_cannot_change_a_candidate_that_is_not_open(): void
+    {
+        [$candidate, $members] = $this->candidateWithMembers(3);
+        $this->service->changeStatus($candidate, $members[0], Candidate::DECIDED);
+
+        $this->assertThrowsWithoutSaving(ValidationException::class, fn () => $this->service->changeStatus($candidate, $members[0], Candidate::CANCELED));
+        $this->assertThrowsWithoutSaving(ValidationException::class, fn () => $this->service->changeStatus($candidate, $members[0], Candidate::OPEN));
+    }
+
+    /** 同時に操作されても、先に確定した状態を後の操作で上書きしない */
+    public function test_cannot_overwrite_a_status_changed_at_the_same_time(): void
+    {
+        [$candidate, $members] = $this->candidateWithMembers(3);
+        $stale = Candidate::find($candidate->id); // 募集中のときに読み込んだもの
+
+        $this->service->changeStatus($candidate, $members[0], Candidate::DECIDED);
+
+        $this->assertThrowsWithoutSaving(ValidationException::class, fn () => $this->service->changeStatus($stale, $members[0], Candidate::CANCELED));
+        $this->assertSame(Candidate::DECIDED, $candidate->fresh()->status);
+    }
+
+    /** 確定・取り消し以外の状態にはできない */
+    public function test_status_must_be_decided_or_canceled(): void
+    {
+        [$candidate, $members] = $this->candidateWithMembers(3);
+
+        $this->assertThrowsWithoutSaving(ValidationException::class, fn () => $this->service->changeStatus($candidate, $members[0], 'unknown'));
+    }
+
     /**
      * 例外が投げられ、候補と返事が1つも増えず・変わらないことを確かめる。
      *

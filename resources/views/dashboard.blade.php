@@ -38,7 +38,7 @@
                             <a href="{{ route('teams.show', $team) }}" class="font-medium text-indigo-600 hover:underline">{{ $team->name }}</a>
                             <span class="text-sm text-gray-500 ml-2">{{ $team->users_count }}人</span>
                         </div>
-                        <a href="{{ url("/teams/{$team->id}/candidates") }}" class="text-sm text-indigo-600 hover:underline">候補を見る →</a>
+                        <a href="{{ route('candidates.index', $team) }}" class="text-sm text-indigo-600 hover:underline">候補を見る →</a>
                     </div>
                 @empty
                     <p class="text-gray-500">まだチームに所属していません。</p>

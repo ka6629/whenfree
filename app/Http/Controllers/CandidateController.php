@@ -9,7 +9,7 @@ use App\Services\CandidateService;
 use Illuminate\Http\Request;
 
 /**
- * 候補と返事の画面（Issue #18・#19・#23・#25）。
+ * 候補と返事の画面（Issue #18・#19・#23・#24・#25）。
  *
  * 決まりの確かめは CandidateService に任せる。
  * - メンバーでない → AuthorizationException → 403
@@ -43,6 +43,38 @@ class CandidateController extends Controller
             ->count();
 
         return view('candidates.index', compact('team', 'candidates', 'myAnswers', 'unansweredCount'));
+    }
+
+    /**
+     * 「あと◯人の返事待ち」だけを返す（Issue #24）。一覧の画面が数秒おきに取りに来る。
+     * 例 {"12": 2, "13": 0}（候補の id => 人数）
+     *
+     * 10秒おきに呼ばれるので、候補が増えても問い合わせの回数が増えないようにまとめて数える。
+     * 数え方は Candidate::remainingCount() と同じ（メンバーのうち、まだ返事をしていない人数）。
+     */
+    public function counts(Request $request, Team $team)
+    {
+        abort_unless($team->users()->whereKey($request->user()->id)->exists(), 403);
+
+        $memberCount = $team->users()->count();
+
+        // 候補ごとの、返事をしたメンバーの人数（候補の id => 人数）
+        $answeredCounts = Response::query()
+            ->join('candidates', 'candidates.id', '=', 'responses.candidate_id')
+            ->join('team_user', function ($join) {
+                $join->on('team_user.user_id', '=', 'responses.user_id')
+                    ->on('team_user.team_id', '=', 'candidates.team_id');
+            })
+            ->where('candidates.team_id', $team->id)
+            ->groupBy('responses.candidate_id')
+            ->selectRaw('responses.candidate_id, count(*) as answered')
+            ->pluck('answered', 'candidate_id');
+
+        $counts = Candidate::where('team_id', $team->id)
+            ->pluck('id')
+            ->mapWithKeys(fn (int $id) => [$id => $memberCount - (int) ($answeredCounts[$id] ?? 0)]);
+
+        return response()->json($counts);
     }
 
     /**

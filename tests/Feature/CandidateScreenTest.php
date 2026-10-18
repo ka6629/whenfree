@@ -8,6 +8,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -117,13 +118,13 @@ class CandidateScreenTest extends TestCase
 
         $this->actingAs($members[0])
             ->get("/teams/{$team->id}/candidates")
-            ->assertSee('あと3人の返事待ち');
+            ->assertSeeText('あと3人の返事待ち');
 
         $this->actingAs($members[0])->post("/candidates/{$candidate->id}/answer", ['answer' => Response::NO]);
 
         $this->actingAs($members[0])
             ->get("/teams/{$team->id}/candidates")
-            ->assertSee('あと2人の返事待ち');
+            ->assertSeeText('あと2人の返事待ち');
     }
 
     /** 完成条件：取り消しの候補には返事できない（ボタンも出ない） */
@@ -420,6 +421,88 @@ class CandidateScreenTest extends TestCase
         $this->actingAs($members[0])
             ->get("/teams/{$team->id}/candidates")
             ->assertDontSee('まだ返事をしていない候補が');
+    }
+
+    /** 完成条件（#24）：ほかの人が返事をすると、取りに行った「あと◯人の返事待ち」が変わる */
+    public function test_counts_change_after_another_member_answers(): void
+    {
+        [$team, $members] = $this->teamWithMembers(3);
+        $candidate = $this->candidate($team);
+        [$otherTeam] = $this->teamWithMembers(2);
+        $otherCandidate = $this->candidate($otherTeam);
+
+        $this->actingAs($members[0])
+            ->getJson("/teams/{$team->id}/candidates/counts")
+            ->assertOk()
+            ->assertExactJson([(string) $candidate->id => 3])
+            ->assertJsonMissingPath((string) $otherCandidate->id);
+
+        $this->actingAs($members[1])->post("/candidates/{$candidate->id}/answer", ['answer' => Response::YES]);
+
+        $this->actingAs($members[0])
+            ->getJson("/teams/{$team->id}/candidates/counts")
+            ->assertExactJson([(string) $candidate->id => 2]);
+    }
+
+    /** 取りに行った人数は remainingCount() と同じ。メンバーでない人の返事は数えず、候補が増えても問い合わせの回数は増えない */
+    public function test_counts_match_remaining_count_with_fixed_queries(): void
+    {
+        [$team, $members] = $this->teamWithMembers(3);
+        $outsider = User::factory()->create(); // 返事をした後でチームを抜けた人のつもり
+        $first = $this->candidate($team);
+        $second = $this->candidate($team);
+        Response::create(['candidate_id' => $first->id, 'user_id' => $members[1]->id, 'answer' => Response::YES]);
+        Response::create(['candidate_id' => $first->id, 'user_id' => $outsider->id, 'answer' => Response::NO]);
+        Response::create(['candidate_id' => $second->id, 'user_id' => $members[0]->id, 'answer' => Response::NO]);
+        Response::create(['candidate_id' => $second->id, 'user_id' => $members[2]->id, 'answer' => Response::YES]);
+
+        $expected = [
+            (string) $first->id => $first->remainingCount(),   // 2
+            (string) $second->id => $second->remainingCount(), // 1
+        ];
+        $this->assertSame([2, 1], array_values($expected));
+
+        $this->actingAs($members[0]);
+        DB::enableQueryLog();
+        $this->getJson("/teams/{$team->id}/candidates/counts")->assertExactJson($expected);
+        $queriesForTwo = count(DB::getQueryLog());
+
+        $this->candidate($team);
+        $this->candidate($team);
+        DB::flushQueryLog();
+        $this->getJson("/teams/{$team->id}/candidates/counts")->assertOk();
+
+        $this->assertSame($queriesForTwo, count(DB::getQueryLog()));
+    }
+
+    /** 完成条件（#24）：メンバーでない人は取れない（403） */
+    public function test_non_member_cannot_get_counts(): void
+    {
+        [$team] = $this->teamWithMembers(2);
+
+        $this->actingAs(User::factory()->create())
+            ->getJson("/teams/{$team->id}/candidates/counts")
+            ->assertForbidden();
+    }
+
+    /** ログインしていない人は取れない */
+    public function test_guest_cannot_get_counts(): void
+    {
+        [$team] = $this->teamWithMembers(2);
+
+        $this->getJson("/teams/{$team->id}/candidates/counts")->assertUnauthorized();
+    }
+
+    /** 一覧の画面に、取りに行く先と書きかえる所がある */
+    public function test_list_page_has_refresh_target(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $candidate = $this->candidate($team);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}/candidates")
+            ->assertSee("data-remaining=\"{$candidate->id}\"", false)
+            ->assertSee(json_encode(route('candidates.counts', $team)), false);
     }
 
     /**

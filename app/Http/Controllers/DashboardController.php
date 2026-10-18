@@ -21,7 +21,7 @@ class DashboardController extends Controller
         // チームごとの未回答の候補の数（募集中で、自分がまだ返事していないもの）
         $unanswered = Candidate::query()
             ->whereIn('team_id', $teams->pluck('id'))
-            ->where('status', 'open')
+            ->where('status', Candidate::OPEN)
             ->whereDoesntHave('responses', fn ($q) => $q->where('user_id', $user->id))
             ->selectRaw('team_id, count(*) as total')
             ->groupBy('team_id')

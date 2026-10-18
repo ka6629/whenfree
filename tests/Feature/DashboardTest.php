@@ -58,8 +58,10 @@ class DashboardTest extends TestCase
         Response::factory()->create(['candidate_id' => $answered->id, 'user_id' => $user->id, 'answer' => 'yes']);
         // 取り消し（数えない）
         Candidate::factory()->canceled()->create(['team_id' => $team->id, 'created_by' => $other->id]);
-
+        // 確定（数えない）
+        Candidate::factory()->decided()->create(['team_id' => $team->id, 'created_by' => $other->id]);
         $this->actingAs($user)->get('/dashboard')->assertSee('未回答 1件');
+
     }
 
     public function test_全部に返事をしたら未回答は出ない(): void

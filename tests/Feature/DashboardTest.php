@@ -19,9 +19,10 @@ class DashboardTest extends TestCase
         $team = Team::create(['name' => '中間発表チーム', 'invite_code' => 'abc123']);
         $team->users()->attach($user);
 
-        $this->actingAs($user)->get('/dashboard')
+                $this->actingAs($user)->get('/dashboard')
             ->assertOk()
-            ->assertSee('中間発表チーム');
+            ->assertSee('中間発表チーム')
+            ->assertSee(route('teams.week', $team), false);
     }
 
     public function test_予定を長く更新していないと案内が出る(): void

@@ -41,7 +41,10 @@
                             <span class="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">未回答 {{ $unanswered[$team->id] }}件</span>
                             @endif
                         </div>
-                        <a href="{{ route('candidates.index', $team) }}" class="text-sm text-indigo-600 hover:underline">候補を見る →</a>
+                        <div class="flex gap-4 shrink-0">
+                            <a href="{{ route('teams.week', $team) }}" class="text-sm text-indigo-600 hover:underline">1週間を見る →</a>
+                            <a href="{{ route('candidates.index', $team) }}" class="text-sm text-indigo-600 hover:underline">候補を見る →</a>
+                        </div>
                     </div>
                 @empty
                     <p class="text-gray-500">まだチームに所属していません。</p>

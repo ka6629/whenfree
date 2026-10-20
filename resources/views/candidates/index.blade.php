@@ -1,13 +1,4 @@
 @php
-    $statusLabels = [
-        \App\Models\Candidate::OPEN => '募集中',
-        \App\Models\Candidate::DECIDED => '確定',
-        \App\Models\Candidate::CANCELED => '取り消し',
-    ];
-    $answerLabels = [
-        \App\Models\Response::YES => 'はい',
-        \App\Models\Response::NO => 'いいえ',
-    ];
     $weekdays = ['日', '月', '火', '水', '木', '金', '土'];
 @endphp
 
@@ -78,12 +69,12 @@
                                     <p class="text-gray-700">{{ $candidate->title }}</p>
                                 @endif
                             </div>
-                            <span class="text-sm px-2 py-1 rounded bg-gray-100">{{ $statusLabels[$candidate->status] }}</span>
+                            <span class="text-sm px-2 py-1 rounded bg-gray-100">{{ $candidate->statusLabel() }}</span>
                         </div>
 
                         <p class="text-sm text-gray-500 mt-2">あと<span data-remaining="{{ $candidate->id }}">{{ $candidate->remainingCount() }}</span>人の返事待ち</p>
                         <p class="text-sm mt-1">
-                            今の返事：{{ $answerLabels[$myAnswers[$candidate->id] ?? ''] ?? 'まだ' }}
+                            今の返事：{{ \App\Models\Response::labelFor($myAnswers[$candidate->id] ?? null) }}
                         </p>
 
                         @if ($candidate->status !== \App\Models\Candidate::CANCELED)

@@ -19,6 +19,16 @@ class Response extends Model
 
     public const NO = 'no';   // いいえ
 
+    /** 返事を画面に出すことば。まだ返事をしていない（null）ときは「まだ」 */
+    public static function labelFor(?string $answer): string
+    {
+        return match ($answer) {
+            self::YES => 'はい',
+            self::NO => 'いいえ',
+            default => 'まだ',
+        };
+    }
+
     public function candidate(): BelongsTo
     {
         return $this->belongsTo(Candidate::class);

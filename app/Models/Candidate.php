@@ -38,6 +38,16 @@ class Candidate extends Model
         ];
     }
 
+    /** 状態を画面に出すことば */
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::OPEN => '募集中',
+            self::DECIDED => '確定',
+            self::CANCELED => '取り消し',
+        };
+    }
+
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);

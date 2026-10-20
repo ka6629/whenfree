@@ -73,7 +73,7 @@
                             今の返事：{{ \App\Models\Response::labelFor($myAnswers[$candidate->id] ?? null) }}
                         </p>
 
-                        @if ($candidate->status !== \App\Models\Candidate::CANCELED)
+                        @if ($candidate->isAnswerable())
                             <form method="POST" action="{{ route('candidates.answer', $candidate) }}" class="flex gap-2 mt-2">
                                 @csrf
                                 <x-primary-button name="answer" value="{{ \App\Models\Response::YES }}">はい</x-primary-button>
@@ -82,7 +82,7 @@
                         @endif
 
                         {{-- 確定・取り消しは、候補を作った人だけ（Issue #23） --}}
-                        @if ($candidate->status === \App\Models\Candidate::OPEN && (int) $candidate->created_by === auth()->id())
+                        @if ($candidate->canChangeStatusBy(auth()->user()))
                             <form method="POST" action="{{ route('candidates.status', $candidate) }}" class="flex gap-2 mt-2">
                                 @csrf
                                 <x-secondary-button type="submit" name="status" value="{{ \App\Models\Candidate::DECIDED }}">確定する</x-secondary-button>

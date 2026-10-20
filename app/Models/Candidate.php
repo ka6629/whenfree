@@ -56,6 +56,18 @@ class Candidate extends Model
         };
     }
 
+    /** 返事ができるか（取り消しになった候補には返事できない） */
+    public function isAnswerable(): bool
+    {
+        return $this->status !== self::CANCELED;
+    }
+
+    /** その人が確定・取り消しにできるか（募集中で、候補を作った本人だけ） */
+    public function canChangeStatusBy(User $user): bool
+    {
+        return $this->status === self::OPEN && (int) $this->created_by === $user->id;
+    }
+
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);

@@ -475,6 +475,28 @@ class CandidateScreenTest extends TestCase
         $this->assertSame($queriesForTwo, count(DB::getQueryLog()));
     }
 
+    /** 一覧の画面も「あと◯人の返事待ち」をまとめて数えるので、候補が増えても問い合わせの回数は増えない（Issue #52） */
+    public function test_list_page_counts_remaining_with_fixed_queries(): void
+    {
+        [$team, $members] = $this->teamWithMembers(3);
+        $first = $this->candidate($team, ['date' => '2026-10-20']);
+        $second = $this->candidate($team, ['date' => '2026-10-21']);
+        Response::create(['candidate_id' => $first->id, 'user_id' => $members[1]->id, 'answer' => Response::YES]);
+
+        $this->actingAs($members[0]);
+        DB::enableQueryLog();
+        $this->get("/teams/{$team->id}/candidates")
+            ->assertSeeInOrder(["data-remaining=\"{$first->id}\">2<", "data-remaining=\"{$second->id}\">3<"], false);
+        $queriesForTwo = count(DB::getQueryLog());
+
+        $this->candidate($team);
+        $this->candidate($team);
+        DB::flushQueryLog();
+        $this->get("/teams/{$team->id}/candidates")->assertOk();
+
+        $this->assertSame($queriesForTwo, count(DB::getQueryLog()));
+    }
+
     /** 完成条件（#24）：メンバーでない人は取れない（403） */
     public function test_non_member_cannot_get_counts(): void
     {

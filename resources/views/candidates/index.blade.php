@@ -68,7 +68,7 @@
                             <span class="text-sm px-2 py-1 rounded bg-gray-100">{{ $candidate->statusLabel() }}</span>
                         </div>
 
-                        <p class="text-sm text-gray-500 mt-2">あと<span data-remaining="{{ $candidate->id }}">{{ $candidate->remainingCount() }}</span>人の返事待ち</p>
+                        <p class="text-sm text-gray-500 mt-2">あと<span data-remaining="{{ $candidate->id }}">{{ $remainingCounts[$candidate->id] }}</span>人の返事待ち</p>
                         <p class="text-sm mt-1">
                             今の返事：{{ \App\Models\Response::labelFor($myAnswers[$candidate->id] ?? null) }}
                         </p>

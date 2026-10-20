@@ -29,6 +29,8 @@ class CandidateController extends Controller
         // データを取るのはモデルに任せる
         $candidates = Candidate::forTeam($team)->get();
         $myAnswers = Response::answersOf($request->user(), $candidates->pluck('id'));
+        // 「あと◯人の返事待ち」は候補ごとに数えず、まとめて数える（候補の id => 人数）
+        $remainingCounts = Candidate::remainingCountsFor($team);
 
         // 画面に出す形にする：まだ返事をしていない、募集中の候補の数（Issue #25）
         $unansweredCount = $candidates
@@ -36,7 +38,7 @@ class CandidateController extends Controller
             ->reject(fn (Candidate $candidate) => $myAnswers->has($candidate->id))
             ->count();
 
-        return view('candidates.index', compact('team', 'candidates', 'myAnswers', 'unansweredCount'));
+        return view('candidates.index', compact('team', 'candidates', 'myAnswers', 'remainingCounts', 'unansweredCount'));
     }
 
     /**

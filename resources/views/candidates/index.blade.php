@@ -1,7 +1,3 @@
-@php
-    $weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-@endphp
-
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $team->name }} の候補</h2>
@@ -62,7 +58,7 @@
                         <div class="flex items-center justify-between gap-2">
                             <div>
                                 <p class="font-semibold">
-                                    {{ $candidate->date->format('n/j') }}（{{ $weekdays[$candidate->date->dayOfWeek] }}）
+                                    {{ $candidate->dateLabel() }}
                                     {{ substr($candidate->start_time, 0, 5) }}〜{{ substr($candidate->end_time, 0, 5) }}
                                 </p>
                                 @if ($candidate->title)

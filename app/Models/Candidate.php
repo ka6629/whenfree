@@ -38,6 +38,14 @@ class Candidate extends Model
         ];
     }
 
+    /** 日付を画面に出す形（例：10/18（日）） */
+    public function dateLabel(): string
+    {
+        $weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+
+        return $this->date->format('n/j').'（'.$weekdays[$this->date->dayOfWeek].'）';
+    }
+
     /** 状態を画面に出すことば */
     public function statusLabel(): string
     {

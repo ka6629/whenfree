@@ -55,6 +55,23 @@
                         </tbody>
                     </table>
                 </div>
+
+                {{-- メンバーの予定の更新（Issue #41） --}}
+                <div class="bg-white p-6 shadow sm:rounded-lg">
+                    <h3 class="font-semibold mb-2">メンバーの予定の更新</h3>
+                    <p class="text-sm text-gray-600 mb-3">{{ $staleDays }}日を超えて予定の更新が無い人と、まだ予定を登録していない人は「不明」として扱います。</p>
+                    <ul id="member-updates" class="divide-y text-sm">
+                        @foreach ($members as $member)
+                            <li class="py-2 flex flex-wrap items-center gap-3">
+                                <span class="font-medium">{{ $member['name'] }}</span>
+                                <span class="text-gray-600">最後に更新した日：{{ $member['updated_at'] ?? 'まだ登録していません' }}</span>
+                                @if ($member['unknown'])
+                                    <span class="px-2 py-1 rounded {{ $labels['unknown']['class'] }}">{{ $labels['unknown']['text'] }}</span>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
             @endif
 
             <a href="{{ route('teams.show', $team) }}" class="text-indigo-600 hover:underline">← チームの画面へ</a>

@@ -16,6 +16,14 @@
                 最後に更新した日：{{ auth()->user()->schedule_updated_at?->format('Y/m/d H:i') ?? 'まだ登録していません' }}
             </p>
 
+            {{-- 予定が変わっていない時に押す（最終更新日だけを今にする）。予定を1回も登録していない人には出さない --}}
+            @if (auth()->user()->schedule_updated_at)
+                <form method="POST" action="{{ route('schedules.confirm') }}">
+                    @csrf
+                    <x-secondary-button type="submit">予定は変わっていません</x-secondary-button>
+                </form>
+            @endif
+
             {{-- 毎週の予定 --}}
             <div class="bg-white p-6 shadow sm:rounded-lg">
                 <h3 class="font-semibold mb-4">毎週の予定</h3>

@@ -61,7 +61,7 @@ class TeamWeekService
                 'id' => $user->id,
                 'name' => $user->name,
                 'updated_at' => $user->schedule_updated_at?->format('Y/m/d H:i'),
-                // 表と同じ決まりで判定する（7日を超えた人・1回も登録していない人は不明）
+                // 表と同じ決まりで判定する（最後の区切りより前に更新した人・1回も登録していない人は不明）
                 'unknown' => $calculator->isUnknown(
                     ['schedule_updated_at' => $user->schedule_updated_at?->format('Y-m-d H:i:s')],
                     $now,
@@ -69,14 +69,15 @@ class TeamWeekService
             ])->all();
     }
 
-    /** 判定に使う値は config/whenfree.php から読む（Issue #3 で決めた値） */
+    /** 判定に使う値は config/whenfree.php から読む（Issue #3 で決めた値と、#57 の区切り） */
     private function calculator(): AvailabilityCalculator
     {
         return new AvailabilityCalculator(
             config('whenfree.slot_minutes'),
             config('whenfree.day_start'),
             config('whenfree.day_end'),
-            config('whenfree.stale_days'),
+            config('whenfree.check_day'),
+            config('whenfree.check_time'),
         );
     }
 }

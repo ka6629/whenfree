@@ -23,7 +23,8 @@ class AvailabilityCalculator
         private int $slotMinutes, // 時間の刻み（分）
         private string $dayStart, // 表の最初の時刻（例 '08:00'）
         private string $dayEnd,   // 表の最後の時刻（例 '22:00'）
-        private int $staleDays,   // この日数を超えて更新が無い人は「不明」
+        private int $checkDay,    // 週1回の確認の区切りの曜日（0＝日曜〜6＝土曜）
+        private string $checkTime, // 区切りの時刻（例 '21:00'）。最後の区切りより前に更新した人は「不明」
     ) {}
 
     /**
@@ -94,7 +95,7 @@ class AvailabilityCalculator
     }
 
     /**
-     * 予定が今も合っているか分からない人か。1回も登録していない人と、最後の更新から日数を超えた人。
+     * 予定が今も合っているか分からない人か。1回も登録していない人と、最後の区切りより前に更新した人（#57）。
      * メンバーの一覧（TeamWeekService::members）でも同じ決まりを使うので public にしている。
      */
     public function isUnknown(array $member, string $now): bool
@@ -103,10 +104,24 @@ class AvailabilityCalculator
             return true; // 1回も登録していない
         }
 
-        // 秒で比べる。ちょうど7日（604800秒）は不明にしない。1秒でも超えたら不明
-        $seconds = (new DateTimeImmutable($now))->getTimestamp() - (new DateTimeImmutable($member['schedule_updated_at']))->getTimestamp();
+        $updatedAt = new DateTimeImmutable($member['schedule_updated_at']);
 
-        return $seconds > $this->staleDays * 86400;
+        // 区切りちょうど（例 日曜 21:00:00）に更新した人は不明にしない。1秒でも前なら不明
+        return $updatedAt < $this->lastCheckAt($now);
+    }
+
+    /** 今から見て一番新しい区切り。例：区切りが日曜 21:00 で、今が 10/20（火）なら 10/18（日）21:00 */
+    private function lastCheckAt(string $now): DateTimeImmutable
+    {
+        $current = new DateTimeImmutable($now);
+        [$hour, $minute] = explode(':', $this->checkTime);
+
+        // 今日の区切りの時刻から、区切りの曜日まで日を戻す（0＝日曜〜6＝土曜）
+        $daysBack = ((int) $current->format('w') - $this->checkDay + 7) % 7;
+        $check = $current->setTime((int) $hour, (int) $minute)->modify("-{$daysBack} days");
+
+        // 区切りの曜日で、まだ区切りの時刻の前（例 日曜 20:00）なら、1週間前の区切りになる
+        return $check > $current ? $check->modify('-7 days') : $check;
     }
 
     /** その予定が、その日付に当たるか。毎週の予定は曜日で、単発の予定は日付で比べる */

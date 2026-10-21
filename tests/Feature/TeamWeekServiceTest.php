@@ -102,13 +102,13 @@ class TeamWeekServiceTest extends TestCase
         $this->assertSame(['2026-10-21 10:00', '2026-10-25 09:00'], $busy);
     }
 
-    /** 予定を1回も登録していない人と、8日前から更新していない人は「不明」。6日前の人は「空き」 */
+    /** 予定を1回も登録していない人と、最後の区切り（10/18（日）21:00）より前に更新した人は「不明」。区切りより後の人は「空き」 */
     public function test_members_without_recent_update_are_unknown(): void
     {
         [$team, $members] = $this->teamWithMembers(3);
         $members[0]->forceFill(['schedule_updated_at' => null])->save();
-        $members[1]->forceFill(['schedule_updated_at' => now()->subDays(8)])->save();
-        $members[2]->forceFill(['schedule_updated_at' => now()->subDays(6)])->save();
+        $members[1]->forceFill(['schedule_updated_at' => '2026-10-18 20:00:00'])->save(); // 昨日でも、区切りより前
+        $members[2]->forceFill(['schedule_updated_at' => '2026-10-18 22:00:00'])->save(); // 区切りより後
 
         $week = (new TeamWeekService)->forTeam($team, '2026-10-19');
 

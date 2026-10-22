@@ -1,16 +1,3 @@
-@php
-    $statusLabels = [
-        \App\Models\Candidate::OPEN => '募集中',
-        \App\Models\Candidate::DECIDED => '確定',
-        \App\Models\Candidate::CANCELED => '取り消し',
-    ];
-    $answerLabels = [
-        \App\Models\Response::YES => 'はい',
-        \App\Models\Response::NO => 'いいえ',
-    ];
-    $weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-@endphp
-
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $team->name }} の候補</h2>
@@ -71,22 +58,22 @@
                         <div class="flex items-center justify-between gap-2">
                             <div>
                                 <p class="font-semibold">
-                                    {{ $candidate->date->format('n/j') }}（{{ $weekdays[$candidate->date->dayOfWeek] }}）
+                                    {{ $candidate->dateLabel() }}
                                     {{ substr($candidate->start_time, 0, 5) }}〜{{ substr($candidate->end_time, 0, 5) }}
                                 </p>
                                 @if ($candidate->title)
                                     <p class="text-gray-700">{{ $candidate->title }}</p>
                                 @endif
                             </div>
-                            <span class="text-sm px-2 py-1 rounded bg-gray-100">{{ $statusLabels[$candidate->status] }}</span>
+                            <span class="text-sm px-2 py-1 rounded bg-gray-100">{{ $candidate->statusLabel() }}</span>
                         </div>
 
-                        <p class="text-sm text-gray-500 mt-2">あと<span data-remaining="{{ $candidate->id }}">{{ $candidate->remainingCount() }}</span>人の返事待ち</p>
+                        <p class="text-sm text-gray-500 mt-2">あと<span data-remaining="{{ $candidate->id }}">{{ $remainingCounts[$candidate->id] }}</span>人の返事待ち</p>
                         <p class="text-sm mt-1">
-                            今の返事：{{ $answerLabels[$myAnswers[$candidate->id] ?? ''] ?? 'まだ' }}
+                            今の返事：{{ \App\Models\Response::labelFor($myAnswers[$candidate->id] ?? null) }}
                         </p>
 
-                        @if ($candidate->status !== \App\Models\Candidate::CANCELED)
+                        @if ($candidate->isAnswerable())
                             <form method="POST" action="{{ route('candidates.answer', $candidate) }}" class="flex gap-2 mt-2">
                                 @csrf
                                 <x-primary-button name="answer" value="{{ \App\Models\Response::YES }}">はい</x-primary-button>
@@ -95,7 +82,7 @@
                         @endif
 
                         {{-- 確定・取り消しは、候補を作った人だけ（Issue #23） --}}
-                        @if ($candidate->status === \App\Models\Candidate::OPEN && (int) $candidate->created_by === auth()->id())
+                        @if ($candidate->canChangeStatusBy(auth()->user()))
                             <form method="POST" action="{{ route('candidates.status', $candidate) }}" class="flex gap-2 mt-2">
                                 @csrf
                                 <x-secondary-button type="submit" name="status" value="{{ \App\Models\Candidate::DECIDED }}">確定する</x-secondary-button>

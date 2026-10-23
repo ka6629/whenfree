@@ -133,6 +133,16 @@ class GoogleCalendarTest extends TestCase
         $this->actingAs($alice)->get("/teams/{$team->id}/week")->assertOk();
     }
 
+    /** ホーム画面から、Google カレンダーをつなぐ画面へ移れる */
+    public function test_home_links_to_google_calendar_page(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get('/dashboard')
+            ->assertOk()
+            ->assertSee(route('google-calendar.show'));
+    }
+
     /** チームの1週間の画面に、つないでいる人にだけ読み込むボタンが出る */
     public function test_sync_button_is_shown_on_team_week_only_when_connected(): void
     {

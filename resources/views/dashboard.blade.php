@@ -28,6 +28,13 @@
                 </div>
             @endif
 
+            {{-- Google カレンダーをつなぐ画面への入り口（担当C Issue #54） --}}
+            <div class="bg-white p-6 shadow sm:rounded-lg">
+                <h3 class="font-semibold mb-1">Google カレンダー</h3>
+                <p class="text-sm text-gray-600">つなぐと、予定が入っている時間がチームの1週間で「埋まり」になります。</p>
+                <a href="{{ route('google-calendar.show') }}" class="inline-block mt-3 text-indigo-600 hover:underline">Google カレンダーをつなぐ →</a>
+            </div>
+
             {{-- 自分のチーム --}}
             <div class="bg-white p-6 shadow sm:rounded-lg">
                 <h3 class="font-semibold mb-4">自分のチーム</h3>

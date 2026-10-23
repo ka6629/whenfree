@@ -48,7 +48,7 @@ class GoogleCalendarController extends Controller
         return redirect()->route('google-calendar.show')->with('status', 'Google カレンダーをつなぎました。');
     }
 
-    // 今すぐ読み込む
+    // 今すぐ読み込む（この画面とチームの1週間の画面から押せる。押した画面に戻る）
     public function sync(Request $request, GoogleCalendarService $service)
     {
         $calendar = GoogleCalendar::of($request->user());
@@ -56,13 +56,13 @@ class GoogleCalendarController extends Controller
 
         try {
             $service->sync($calendar);
+            $message = '予定を読み込みました。';
         } catch (Throwable $e) {
             report($e);
-
-            return redirect()->route('google-calendar.show')->with('status', '読み込めませんでした。つなぎ直してください。');
+            $message = '読み込めませんでした。Google カレンダーの画面からつなぎ直してください。';
         }
 
-        return redirect()->route('google-calendar.show')->with('status', '予定を読み込みました。');
+        return back(fallback: route('google-calendar.show'))->with('status', $message);
     }
 
     public function destroy(Request $request, GoogleCalendarService $service)

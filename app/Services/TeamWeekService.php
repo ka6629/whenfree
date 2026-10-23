@@ -22,7 +22,7 @@ class TeamWeekService
     public function forTeam(Team $team, ?string $firstDate = null): array
     {
         // Google カレンダーをつないだ人は、しばらく読み込んでいなければ読み込み直す（Issue #54・担当C）
-        app(GoogleCalendarService::class)->syncIfStale($team->users()->pluck('users.id'));
+        app(GoogleCalendarService::class)->syncIfStale($team);
 
         $members = $team->users()->orderBy('users.id')->get();
 

@@ -133,6 +133,32 @@ class GoogleCalendarTest extends TestCase
         $this->actingAs($alice)->get("/teams/{$team->id}/week")->assertOk();
     }
 
+    /** チームの1週間の画面に、つないでいる人にだけ読み込むボタンが出る */
+    public function test_sync_button_is_shown_on_team_week_only_when_connected(): void
+    {
+        [$team, [$alice, $bob]] = $this->teamWithMembers(2);
+        $this->connected($alice);
+
+        $this->actingAs($alice)->get("/teams/{$team->id}/week")->assertSee('Google カレンダーを読み込む');
+        $this->actingAs($bob)->get("/teams/{$team->id}/week")->assertDontSee('Google カレンダーを読み込む');
+    }
+
+    /** チームの1週間の画面から読み込むと、読み込んでから同じ画面に戻る */
+    public function test_sync_from_team_week_returns_to_team_week(): void
+    {
+        $this->fakeGoogle([['start' => '2026-10-19T16:00:00+09:00', 'end' => '2026-10-19T17:00:00+09:00']]);
+        [$team, [$alice]] = $this->teamWithMembers(1);
+        $this->connected($alice);
+
+        $this->actingAs($alice)
+            ->from("/teams/{$team->id}/week")
+            ->post('/google-calendar/sync')
+            ->assertRedirect("/teams/{$team->id}/week")
+            ->assertSessionHas('status', '予定を読み込みました。');
+
+        $this->assertDatabaseHas('google_busy_times', ['user_id' => $alice->id, 'start_time' => '16:00']);
+    }
+
     /** つながりを外すと、読み込んだ時間も消える */
     public function test_user_can_disconnect(): void
     {

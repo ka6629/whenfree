@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\GoogleBusyTime;
 use App\Models\GoogleCalendar;
+use App\Models\Team;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
@@ -58,11 +59,7 @@ class GoogleCalendarService
             'grant_type' => 'authorization_code',
         ])->throw()->json();
 
-        $calendar = GoogleCalendar::updateOrCreate(['user_id' => $user->id], [
-            'access_token' => $token['access_token'],
-            'refresh_token' => $token['refresh_token'] ?? null,
-            'expires_at' => now()->addSeconds($token['expires_in'] ?? 3600),
-        ]);
+        $calendar = GoogleCalendar::saveToken($user, $token);
 
         $this->sync($calendar);
 
@@ -107,15 +104,13 @@ class GoogleCalendarService
 
         GoogleBusyTime::replaceFor($calendar->user_id, $rows);
 
-        $calendar->update(['synced_at' => now()]);
-        // 読み込めた人は予定が今のものなので、「不明」にしない
-        $calendar->user->forceFill(['schedule_updated_at' => now()])->save();
+        $calendar->markSynced();
     }
 
     /** チームの1週間を開いたときに、しばらく読み込んでいない人だけ読み込み直す。失敗しても画面は出す */
-    public function syncIfStale(iterable $userIds): void
+    public function syncIfStale(Team $team): void
     {
-        GoogleCalendar::needsSync($userIds, self::STALE_MINUTES)
+        GoogleCalendar::needsSync($team, self::STALE_MINUTES)
             ->each(function (GoogleCalendar $calendar) {
                 try {
                     $this->sync($calendar);
@@ -139,10 +134,7 @@ class GoogleCalendarService
             'grant_type' => 'refresh_token',
         ])->throw()->json();
 
-        $calendar->update([
-            'access_token' => $token['access_token'],
-            'expires_at' => now()->addSeconds($token['expires_in'] ?? 3600),
-        ]);
+        $calendar->updateToken($token);
 
         return $calendar->access_token;
     }

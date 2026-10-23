@@ -18,6 +18,9 @@
     <div class="py-8">
         <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
+            {{-- Google カレンダーを読み込むボタン（つないでいる人にだけ出る・担当C Issue #54） --}}
+            <x-google-calendar-sync-button />
+
             @if ($memberCount === 0)
                 <div class="bg-white p-6 shadow sm:rounded-lg">メンバーがいません。</div>
             @else

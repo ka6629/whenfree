@@ -36,16 +36,47 @@ class GoogleCalendar extends Model
     }
 
     /**
-     * 最後に読み込んでから $minutes 分を過ぎた（または1回も読み込んでいない）カレンダー。持ち主もまとめて取る
+     * チームのメンバーのうち、最後に読み込んでから $minutes 分を過ぎた（または1回も読み込んでいない）カレンダー。持ち主もまとめて取る
      *
      * @return Collection<int, self>
      */
-    public static function needsSync(iterable $userIds, int $minutes): Collection
+    public static function needsSync(Team $team, int $minutes): Collection
     {
         return static::with('user')
-            ->whereIn('user_id', collect($userIds))
+            ->whereIn('user_id', $team->users()->select('users.id'))
             ->where(fn ($query) => $query->whereNull('synced_at')->orWhere('synced_at', '<', now()->subMinutes($minutes)))
             ->get();
+    }
+
+    /**
+     * Google からもらったトークンを保存する（つなぎ直したときは上書きする）
+     *
+     * @param  array  $token  Google の返事（access_token・refresh_token・expires_in）
+     */
+    public static function saveToken(User $user, array $token): self
+    {
+        return static::updateOrCreate(['user_id' => $user->id], [
+            'access_token' => $token['access_token'],
+            'refresh_token' => $token['refresh_token'] ?? null,
+            'expires_at' => now()->addSeconds($token['expires_in'] ?? 3600),
+        ]);
+    }
+
+    /** 期限が切れて新しくもらったトークンに替える（refresh_token が来なければ前のものを使い続ける） */
+    public function updateToken(array $token): void
+    {
+        $this->update(array_filter([
+            'access_token' => $token['access_token'],
+            'refresh_token' => $token['refresh_token'] ?? null,
+            'expires_at' => now()->addSeconds($token['expires_in'] ?? 3600),
+        ]));
+    }
+
+    /** 読み込めたことを記録する。読み込めた人は予定が今のものなので、「最後に更新した日」も今にして「不明」にしない */
+    public function markSynced(): void
+    {
+        $this->update(['synced_at' => now()]);
+        $this->user->forceFill(['schedule_updated_at' => now()])->save();
     }
 
     /** 画面に出す「最後に読み込んだ日時」（例 2026/10/19 07:00） */

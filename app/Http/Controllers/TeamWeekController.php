@@ -16,8 +16,9 @@ class TeamWeekController extends Controller
         $memberCount = $team->users()->count();
         $week = $memberCount > 0 ? $service->forTeam($team) : [];
         $members = $memberCount > 0 ? $service->members($team) : [];
-        $staleDays = config('whenfree.stale_days');
+        $checkDay = config('whenfree.check_day');   // 週1回の確認の区切り（#57）。画面の説明に使う
+        $checkTime = config('whenfree.check_time');
 
-        return view('teams.week', compact('team', 'memberCount', 'week', 'members', 'staleDays'));
+        return view('teams.week', compact('team', 'memberCount', 'week', 'members', 'checkDay', 'checkTime'));
     }
 }

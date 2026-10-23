@@ -27,7 +27,7 @@
                     <ul class="flex flex-wrap gap-4 text-sm">
                         <li><span class="px-2 py-1 rounded {{ $labels['free']['class'] }}">{{ $labels['free']['text'] }}</span> メンバー全員が空いている</li>
                         <li><span class="px-2 py-1 rounded {{ $labels['busy']['class'] }}">{{ $labels['busy']['text'] }}</span> 予定が入っている人が1人以上いる</li>
-                        <li><span class="px-2 py-1 rounded {{ $labels['unknown']['class'] }}">{{ $labels['unknown']['text'] }}</span> 予定の更新が7日を超えて無い人がいる</li>
+                        <li><span class="px-2 py-1 rounded {{ $labels['unknown']['class'] }}">{{ $labels['unknown']['text'] }}</span> 予定を確かめていない人がいる（くわしくは下の「メンバーの予定の更新」）</li>
                     </ul>
                 </div>
 
@@ -59,7 +59,7 @@
                 {{-- メンバーの予定の更新（Issue #41） --}}
                 <div class="bg-white p-6 shadow sm:rounded-lg">
                     <h3 class="font-semibold mb-2">メンバーの予定の更新</h3>
-                    <p class="text-sm text-gray-600 mb-3">{{ $staleDays }}日を超えて予定の更新が無い人と、まだ予定を登録していない人は「不明」として扱います。</p>
+                    <p class="text-sm text-gray-600 mb-3">毎週{{ $weekdays[$checkDay] }}曜 {{ $checkTime }} を過ぎると、全員がいったん「不明」になります。<a href="{{ route('schedules.index') }}" class="text-indigo-600 hover:underline">自分の予定</a>の画面で予定を登録・編集・削除するか、「予定は変わっていません」を押すと、「最後に更新した日」が新しくなり、「不明」が外れます。まだ予定を登録していない人は「不明」のままです。</p>
                     <ul id="member-updates" class="divide-y text-sm">
                         @foreach ($members as $member)
                             <li class="py-2 flex flex-wrap items-center gap-3">

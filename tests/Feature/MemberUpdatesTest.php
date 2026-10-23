@@ -28,25 +28,25 @@ class MemberUpdatesTest extends TestCase
     {
         $team = $this->team();
         $a = $this->member($team, 'Aさん', '2026-10-18 21:30:00');
-        $this->member($team, 'Bさん', '2026-10-13 07:00:00'); // 6日前
+        $this->member($team, 'Bさん', '2026-10-19 06:30:00'); // 今日の朝（最後の区切り 10/18 21:00 より後）
 
         $rows = $this->rows($this->actingAs($a)->get(route('teams.week', $team)));
 
         $this->assertSame(['Aさん', 'Bさん'], array_keys($rows)); // id の順
         $this->assertStringContainsString('最後に更新した日：2026/10/18 21:30', $rows['Aさん']);
-        $this->assertStringContainsString('最後に更新した日：2026/10/13 07:00', $rows['Bさん']);
+        $this->assertStringContainsString('最後に更新した日：2026/10/19 06:30', $rows['Bさん']);
         $this->assertStringNotContainsString('不明', $rows['Aさん']);
         $this->assertStringNotContainsString('不明', $rows['Bさん']);
     }
 
-    /** 完成条件：7日を超えた人と、1回も登録していない人に「不明」と出る */
+    /** 完成条件：最後の区切り（10/18（日）21:00）より前に更新した人と、1回も登録していない人に「不明」と出る（#57 で7日から変えた） */
     public function test_stale_and_unregistered_members_are_unknown(): void
     {
         $team = $this->team();
         $a = $this->member($team, 'Aさん', '2026-10-19 06:00:00');
-        $this->member($team, 'Bさん', '2026-10-11 07:00:00'); // 8日前
+        $this->member($team, 'Bさん', '2026-10-18 20:00:00'); // 昨日でも、区切りより前＝不明
         $this->member($team, 'Cさん', null);                  // 1回も登録していない
-        $this->member($team, 'Dさん', '2026-10-12 07:00:00'); // ちょうど7日前＝表と同じく不明にしない
+        $this->member($team, 'Dさん', '2026-10-18 21:00:00'); // 区切りちょうど＝表と同じく不明にしない
 
         $rows = $this->rows($this->actingAs($a)->get(route('teams.week', $team)));
 

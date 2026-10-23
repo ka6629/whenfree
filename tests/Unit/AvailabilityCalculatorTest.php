@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Issue #5 の「完了の条件」を、番号の順に確かめる。
  * 表の最初の日は 2026-10-19（月）、今の日時はその日の 7:00 とする。
+ * 週1回の確認の区切りは日曜 21:00（#57）なので、最後の区切りは 10/18（日）21:00 になる。
  */
 class AvailabilityCalculatorTest extends TestCase
 {
@@ -15,16 +16,15 @@ class AvailabilityCalculatorTest extends TestCase
 
     private const NOW = '2026-10-19 07:00:00';
 
-    private const YESTERDAY = '2026-10-18 07:00:00';
-
-    private const SEVEN_DAYS_AGO = '2026-10-12 07:00:00';
+    /** 昨日の 22:00。最後の区切り（10/18 21:00）より後なので「不明」にならない */
+    private const YESTERDAY = '2026-10-18 22:00:00';
 
     private const EIGHT_DAYS_AGO = '2026-10-11 07:00:00';
 
-    /** Issue #3 で決まった値（1時間・8:00〜22:00・7日）で、計算の部品を作る */
+    /** Issue #3 で決まった値（1時間・8:00〜22:00）と、#57 の区切り（日曜 21:00）で、計算の部品を作る */
     private function calculator(int $slotMinutes = 60): AvailabilityCalculator
     {
-        return new AvailabilityCalculator($slotMinutes, '08:00', '22:00', 7);
+        return new AvailabilityCalculator($slotMinutes, '08:00', '22:00', 0, '21:00');
     }
 
     /** 表の中で、チームが 埋まり の枠を「日付 時刻」の形で並べて返す */
@@ -281,24 +281,39 @@ class AvailabilityCalculatorTest extends TestCase
         $this->assertSame(['2026-10-19 08:00', '2026-10-20 21:00'], $this->busySlots($table));
     }
 
-    /** 完了の条件 9：1人の更新がちょうど7日前 → 不明にしない（7日を超えたら不明） */
-    public function test_member_is_not_unknown_when_the_last_update_is_exactly_at_the_limit(): void
+    /** 完了の条件 9（#57 で変えた）：最後の区切り（10/18 21:00）ちょうどに更新した人 → 不明にしない（1秒でも前なら不明） */
+    public function test_member_is_not_unknown_when_the_last_update_is_exactly_at_the_check_time(): void
     {
         $members = [
             ['id' => 1, 'schedule_updated_at' => self::YESTERDAY],
-            ['id' => 2, 'schedule_updated_at' => self::SEVEN_DAYS_AGO],
+            ['id' => 2, 'schedule_updated_at' => '2026-10-18 21:00:00'],
         ];
 
         $table = $this->calculator()->calculate($members, [], self::FIRST_DATE, self::NOW);
 
-        // ちょうど7日前（10/12 7:00）は、まだ 空き
+        // 区切りちょうど（10/18 21:00）は、まだ 空き
         $this->assertSame(['free'], $this->memberStatuses($table, 2));
         $this->assertSame(['free'], $this->teamStatuses($table));
 
-        // 1秒でも超えたら（10/12 6:59:59）不明
-        $members[1]['schedule_updated_at'] = '2026-10-12 06:59:59';
+        // 1秒でも前なら（10/18 20:59:59）不明。昨日の更新でも、区切りより前なら 不明
+        $members[1]['schedule_updated_at'] = '2026-10-18 20:59:59';
         $table = $this->calculator()->calculate($members, [], self::FIRST_DATE, self::NOW);
         $this->assertSame(['unknown'], $this->memberStatuses($table, 2));
+    }
+
+    /** #57：日曜の 21:00 になると、区切りがその日に変わる（それまでは前の週の区切りのまま） */
+    public function test_last_check_moves_to_the_day_at_sunday_21_00(): void
+    {
+        // 1番の人は 10/19（月）7:00 に更新した（10/18 21:00 の区切りより後）
+        $members = [['id' => 1, 'schedule_updated_at' => self::NOW]];
+
+        // 今が 10/25（日）20:59:59 → 最後の区切りはまだ 10/18 21:00 → 空き
+        $table = $this->calculator()->calculate($members, [], '2026-10-25', '2026-10-25 20:59:59');
+        $this->assertSame(['free'], $this->memberStatuses($table, 1));
+
+        // 今が 10/25（日）21:00 → 最後の区切りは 10/25 21:00 → 不明（予定を確かめると戻る）
+        $table = $this->calculator()->calculate($members, [], '2026-10-25', '2026-10-25 21:00:00');
+        $this->assertSame(['unknown'], $this->memberStatuses($table, 1));
     }
 
     /** 表の最初の日は月曜でなくてよい：10/14（水）を渡す → 表は 10/14〜10/20。毎週月曜の予定は 10/19 に出る */

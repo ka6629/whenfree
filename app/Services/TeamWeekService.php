@@ -58,30 +58,38 @@ class TeamWeekService
      */
     public function members(Team $team): array
     {
-        $calculator = $this->calculator();
-        $now = now()->format('Y-m-d H:i:s');
-
         return $team->users()->orderBy('users.id')->get()
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'updated_at' => $user->schedule_updated_at?->format('Y/m/d H:i'),
-                // 表と同じ決まりで判定する（7日を超えた人・1回も登録していない人は不明）
-                'unknown' => $calculator->isUnknown(
-                    ['schedule_updated_at' => $user->schedule_updated_at?->format('Y-m-d H:i:s')],
-                    $now,
-                ),
+                // 表と同じ決まりで判定する（最後の区切りより前に更新した人・1回も登録していない人は不明）
+                'unknown' => $this->isUnknown($user),
             ])->all();
     }
 
-    /** 判定に使う値は config/whenfree.php から読む（Issue #3 で決めた値） */
+    /**
+     * その人の予定が「不明」か（#57）。1回も登録していない人と、最後の区切りより前に更新した人。
+     * メンバーの一覧と、ホーム画面の「予定を確認してください」で同じ決まりを使う。
+     */
+    public function isUnknown(User $user): bool
+    {
+        return $this->calculator()->isUnknown(
+            // 日時は文字にしてから渡す（forTeam と同じ理由）
+            ['schedule_updated_at' => $user->schedule_updated_at?->format('Y-m-d H:i:s')],
+            now()->format('Y-m-d H:i:s'),
+        );
+    }
+
+    /** 判定に使う値は config/whenfree.php から読む（Issue #3 で決めた値と、#57 の区切り） */
     private function calculator(): AvailabilityCalculator
     {
         return new AvailabilityCalculator(
             config('whenfree.slot_minutes'),
             config('whenfree.day_start'),
             config('whenfree.day_end'),
-            config('whenfree.stale_days'),
+            config('whenfree.check_day'),
+            config('whenfree.check_time'),
         );
     }
 }

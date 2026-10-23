@@ -28,13 +28,17 @@ class TeamWeekScreenTest extends TestCase
     {
         [$team, $members] = $this->teamWithMembers(2);
 
-        $this->actingAs($members[0])
-            ->get("/teams/{$team->id}/week")
-            ->assertOk()
+        $response = $this->actingAs($members[0])->get("/teams/{$team->id}/week");
+
+        $response->assertOk()
             ->assertSee('表の見方')
             ->assertSeeInOrder(['10/19（月）', '10/25（日）'])
-            ->assertSeeInOrder(['08:00', '21:00'])
             ->assertDontSee('22:00');
+
+        // 時刻は表の枠で見る（下の説明にも「21:00」が出るため）
+        $cells = $this->cells($response);
+        $this->assertSame('08:00', array_key_first($cells['10/19（月）']));
+        $this->assertSame('21:00', array_key_last($cells['10/19（月）']));
     }
 
     /** 完成条件：メンバーでない人は開けない（403） */
@@ -89,7 +93,7 @@ class TeamWeekScreenTest extends TestCase
         $this->assertSame(['× 埋まり' => 1, '○ 空き' => 97], $this->countLabels($cells));
     }
 
-    /** 完成条件：更新が7日を超えた人がいる枠は「不明」。ただし埋まりの人がいる枠は「埋まり」 */
+    /** 完成条件：最後の区切り（10/18（日）21:00）より前に更新した人がいる枠は「不明」。ただし埋まりの人がいる枠は「埋まり」 */
     public function test_unknown_cell_shows_unknown_label_but_busy_wins(): void
     {
         [$team, $members] = $this->teamWithMembers(2);
@@ -101,13 +105,39 @@ class TeamWeekScreenTest extends TestCase
             'end_time' => '14:00',
         ]);
         $members[0]->forceFill(['schedule_updated_at' => now()])->save();
-        $members[1]->forceFill(['schedule_updated_at' => now()->subDays(8)])->save(); // 8日前から更新していない
+        $members[1]->forceFill(['schedule_updated_at' => '2026-10-18 20:00:00'])->save(); // 区切りの1時間前（7日は超えていない）
 
         $cells = $this->cells($this->actingAs($members[0])->get("/teams/{$team->id}/week"));
 
         $this->assertSame('× 埋まり', $cells['10/21（水）']['13:00']); // 埋まりの人がいる枠は「埋まり」
         $this->assertSame('？ 不明', $cells['10/21（水）']['14:00']);
         $this->assertSame(['× 埋まり' => 1, '？ 不明' => 97], $this->countLabels($cells));
+    }
+
+    /** #57：メンバーの一覧の上に、区切り（毎週日曜 21:00）と「不明」の外し方の説明が出る。前の「7日」の説明は出ない */
+    public function test_page_explains_the_weekly_check(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}/week")
+            ->assertOk()
+            ->assertSeeText('毎週日曜 21:00 を過ぎると、全員がいったん「不明」になります。')
+            ->assertSeeText('自分の予定の画面で予定を登録・編集・削除するか、「予定は変わっていません」を押すと')
+            ->assertDontSee('7日を超えて');
+    }
+
+    /** #57：説明の曜日と時刻は、設定（config/whenfree.php）の値から作る */
+    public function test_check_explanation_follows_the_config(): void
+    {
+        config(['whenfree.check_day' => 6, 'whenfree.check_time' => '09:30']);
+        [$team, $members] = $this->teamWithMembers(2);
+
+        $this->actingAs($members[0])
+            ->get("/teams/{$team->id}/week")
+            ->assertOk()
+            ->assertSeeText('毎週土曜 09:30 を過ぎると、全員がいったん「不明」になります。')
+            ->assertDontSee('毎週日曜 21:00');
     }
 
     /**

@@ -76,4 +76,30 @@ class DashboardTest extends TestCase
 
         $this->actingAs($user)->get('/dashboard')->assertDontSee('未回答');
     }
+
+    /** #57：最後の区切り（毎週日曜 21:00）より前に更新した人には、7日以内でも案内が出る。前の「7日」の説明は出ない */
+    public function test_区切りより前に更新した人には案内が出る(): void
+    {
+        $this->travelTo('2026-10-20 12:00:00'); // 「今」を 2026-10-20（火）12:00 に固定する。最後の区切りは 10/18（日）21:00
+        $user = User::factory()->create(['schedule_updated_at' => '2026-10-18 20:59:00']);
+
+        $this->actingAs($user)->get('/dashboard')
+            ->assertOk()
+            ->assertSee('予定を確認してください')
+            ->assertSeeText('最後に更新したのは 2026/10/18 20:59 です。')
+            ->assertSeeText('毎週日曜 21:00 を過ぎると、全員がいったん「不明」になります。')
+            ->assertDontSee('日を超えて');
+    }
+
+    /** #57：区切りちょうど（日曜 21:00:00）に更新した人には、案内が出ない（1週間の画面と同じ決まり） */
+    public function test_区切りちょうどに更新した人には案内が出ない(): void
+    {
+        $this->travelTo('2026-10-20 12:00:00');
+        $user = User::factory()->create(['schedule_updated_at' => '2026-10-18 21:00:00']);
+
+        $this->actingAs($user)->get('/dashboard')
+            ->assertOk()
+            ->assertDontSee('予定を確認してください')
+            ->assertSeeText('最後に更新した日：2026/10/18 21:00');
+    }
 }

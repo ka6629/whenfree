@@ -1,3 +1,5 @@
+@php($weekdays = ['日', '月', '火', '水', '木', '金', '土'])
+
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">ホーム</h2>
@@ -6,17 +8,16 @@
     <div class="py-8">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            {{-- 予定の更新状況 --}}
+            {{-- 予定の更新状況（チームの1週間と同じ決まり。#57） --}}
             @if ($isStale)
                 <div class="bg-yellow-50 border border-yellow-200 p-6 sm:rounded-lg">
                     <h3 class="font-semibold text-yellow-800 mb-1">予定を確認してください</h3>
                     <p class="text-sm text-yellow-800">
                         @if ($updatedAt)
-                            最後に更新したのは {{ $updatedAt->format('Y/m/d') }} です。
+                            最後に更新したのは {{ $updatedAt->format('Y/m/d H:i') }} です。毎週{{ $weekdays[$checkDay] }}曜 {{ $checkTime }} を過ぎると、全員がいったん「不明」になります。予定を確かめて、変わっていなければ「予定は変わっていません」を押してください。
                         @else
-                            まだ予定を登録していません。
+                            まだ予定を登録していません。予定を登録するまで、チームの1週間では「不明」として扱われます。
                         @endif
-                        {{ $staleDays }}日を超えて更新が無いと、チームの1週間で「不明」として扱われます。
                     </p>
                     <a href="{{ route('schedules.index') }}" class="inline-block mt-3 text-indigo-600 hover:underline">予定を確認する →</a>
                 </div>

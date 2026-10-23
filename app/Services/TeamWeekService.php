@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\GoogleBusyTime;
 use App\Models\Schedule;
 use App\Models\Team;
 use App\Models\User;
@@ -20,6 +21,9 @@ class TeamWeekService
      */
     public function forTeam(Team $team, ?string $firstDate = null): array
     {
+        // Google カレンダーをつないだ人は、しばらく読み込んでいなければ読み込み直す（Issue #54・担当C）
+        app(GoogleCalendarService::class)->syncIfStale($team->users()->pluck('users.id'));
+
         $members = $team->users()->orderBy('users.id')->get();
 
         // 日時は文字にしてから渡す（date の cast のまま toArray() すると UTC に直され、前の日になる）
@@ -40,7 +44,8 @@ class TeamWeekService
 
         return $this->calculator()->calculate(
             $memberRows,
-            $scheduleRows,
+            // Google カレンダーから読み込んだ「埋まり」も、単発の予定として一緒に渡す（Issue #54・担当C）
+            [...$scheduleRows, ...GoogleBusyTime::rowsFor($members->pluck('id'))],
             $firstDate ?? today()->format('Y-m-d'),
             now()->format('Y-m-d H:i:s'),
         );

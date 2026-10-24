@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CandidateController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleConfirmController;
 use App\Http\Controllers\ScheduleController;
@@ -35,6 +36,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/teams/{team}/candidates/counts', [CandidateController::class, 'counts'])->name('candidates.counts');
     Route::post('/candidates/{candidate}/answer', [CandidateController::class, 'answer'])->name('candidates.answer');
     Route::post('/candidates/{candidate}/status', [CandidateController::class, 'changeStatus'])->name('candidates.status');
+});
+
+// Google カレンダーの読み込み（担当C・Issue #54）
+Route::middleware('auth')->group(function () {
+    Route::get('/google-calendar', [GoogleCalendarController::class, 'show'])->name('google-calendar.show');
+    Route::get('/google-calendar/connect', [GoogleCalendarController::class, 'redirect'])->name('google-calendar.redirect');
+    Route::get('/google-calendar/callback', [GoogleCalendarController::class, 'callback'])->name('google-calendar.callback');
+    Route::post('/google-calendar/sync', [GoogleCalendarController::class, 'sync'])->name('google-calendar.sync');
+    Route::delete('/google-calendar', [GoogleCalendarController::class, 'destroy'])->name('google-calendar.destroy');
 });
 
 require __DIR__.'/auth.php';

@@ -72,11 +72,10 @@ class GoogleCalendar extends Model
         ]));
     }
 
-    /** 読み込めたことを記録する。読み込めた人は予定が今のものなので、「最後に更新した日」も今にして「不明」にしない */
+    /** 読み込めたことを記録する。読み込んだだけでは「確かめた」ことにしないので、「最後に更新した日」は変えない（#57） */
     public function markSynced(): void
     {
         $this->update(['synced_at' => now()]);
-        $this->user->forceFill(['schedule_updated_at' => now()])->save();
     }
 
     /** 画面に出す「最後に読み込んだ日時」（例 2026/10/19 07:00） */

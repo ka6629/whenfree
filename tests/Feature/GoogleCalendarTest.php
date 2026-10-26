@@ -52,7 +52,7 @@ class GoogleCalendarTest extends TestCase
         $calendar = GoogleCalendar::where('user_id', $user->id)->first();
         $this->assertSame('access-1', $calendar->access_token);
         $this->assertNotNull($calendar->synced_at);
-        $this->assertNotNull($user->fresh()->schedule_updated_at); // 読み込めた人は「不明」にしない
+        $this->assertNull($user->fresh()->schedule_updated_at); // 読み込んだだけでは「確かめた」ことにしない（#57）
         $this->assertDatabaseHas('google_busy_times', ['user_id' => $user->id, 'start_time' => '10:00', 'end_time' => '11:30']);
     }
 

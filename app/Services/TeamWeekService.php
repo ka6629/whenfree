@@ -6,6 +6,7 @@ use App\Models\GoogleBusyTime;
 use App\Models\Schedule;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * 「チームの1週間」の入口（担当B）。
@@ -21,11 +22,33 @@ class TeamWeekService
      */
     public function forTeam(Team $team, ?string $firstDate = null): array
     {
+        return $this->forTeamWithMembers($team, $firstDate)['week'];
+    }
+
+    /**
+     * チームの1週間ぶんの表と、メンバーの一覧を一緒に返す（チームの1週間の画面で使う）。
+     * メンバーは1回だけ読んで、表と一覧の両方に使う（#55 のレビューで神井さんが挙げた点）。
+     *
+     * @param  string|null  $firstDate  表の最初の日（例 '2026-10-19'）。null なら今日
+     * @return array ['week' => forTeam() と同じ形, 'members' => memberList() の形]
+     */
+    public function forTeamWithMembers(Team $team, ?string $firstDate = null): array
+    {
         // Google カレンダーをつないだ人は、しばらく読み込んでいなければ読み込み直す（Issue #54・担当C）
+        // メンバーは、読み込み直した後に読む
         app(GoogleCalendarService::class)->syncIfStale($team);
 
         $members = $team->users()->orderBy('users.id')->get();
 
+        return [
+            'week' => $this->week($members, $firstDate),
+            'members' => $this->memberList($members),
+        ];
+    }
+
+    /** 読んだメンバーと、その人たちの予定から、1週間ぶんの表を作る */
+    private function week(Collection $members, ?string $firstDate): array
+    {
         // 日時は文字にしてから渡す（date の cast のまま toArray() すると UTC に直され、前の日になる）
         $memberRows = $members->map(fn (User $user) => [
             'id' => $user->id,
@@ -56,16 +79,15 @@ class TeamWeekService
      *
      * @return array [['id' => 1, 'name' => '…', 'updated_at' => '2026/10/18 07:00' または null, 'unknown' => true/false], ...]
      */
-    public function members(Team $team): array
+    private function memberList(Collection $members): array
     {
-        return $team->users()->orderBy('users.id')->get()
-            ->map(fn (User $user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'updated_at' => $user->schedule_updated_at?->format('Y/m/d H:i'),
-                // 表と同じ決まりで判定する（最後の区切りより前に更新した人・1回も登録していない人は不明）
-                'unknown' => $this->isUnknown($user),
-            ])->all();
+        return $members->map(fn (User $user) => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'updated_at' => $user->schedule_updated_at?->format('Y/m/d H:i'),
+            // 表と同じ決まりで判定する（最後の区切りより前に更新した人・1回も登録していない人は不明）
+            'unknown' => $this->isUnknown($user),
+        ])->all();
     }
 
     /**
@@ -75,7 +97,7 @@ class TeamWeekService
     public function isUnknown(User $user): bool
     {
         return $this->calculator()->isUnknown(
-            // 日時は文字にしてから渡す（forTeam と同じ理由）
+            // 日時は文字にしてから渡す（week() と同じ理由）
             ['schedule_updated_at' => $user->schedule_updated_at?->format('Y-m-d H:i:s')],
             now()->format('Y-m-d H:i:s'),
         );

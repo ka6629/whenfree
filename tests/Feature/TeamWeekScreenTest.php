@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -193,6 +195,25 @@ class TeamWeekScreenTest extends TestCase
             ->assertSee(route('candidates.store', $team))
             ->assertSee('この時間で候補を作る')
             ->assertDontSee('歯医者');
+    }
+
+    /** #55 のレビューで神井さんが挙げた点：表とメンバーの一覧のために、チームのメンバーを読むのは1回だけ */
+    public function test_page_loads_team_members_only_once(): void
+    {
+        [$team, $members] = $this->teamWithMembers(3);
+
+        // メンバーを1人ずつの行として読む SQL だけを数える（メンバーかどうかの exists() と、人数の count() は数えない）
+        $loads = 0;
+        DB::listen(function (QueryExecuted $query) use (&$loads) {
+            $sql = str_replace(['"', '`'], '', $query->sql); // SQLite でも MySQL でも同じ形で見る
+            if (str_starts_with($sql, 'select users.*') && str_contains($sql, 'team_user')) {
+                $loads++;
+            }
+        });
+
+        $this->actingAs($members[0])->get("/teams/{$team->id}/week")->assertOk();
+
+        $this->assertSame(1, $loads);
     }
 
     /**

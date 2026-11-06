@@ -15,8 +15,10 @@ class TeamWeekController extends Controller
         abort_unless($team->users()->whereKey($request->user()->id)->exists(), 403);
 
         $memberCount = $team->users()->count();
-        $week = $memberCount > 0 ? $service->forTeam($team) : [];
-        $members = $memberCount > 0 ? $service->members($team) : [];
+        // 表とメンバーの一覧は、メンバーを1回だけ読んで一緒に作る（#55 のレビューで神井さんが挙げた点）
+        $weekAndMembers = $memberCount > 0 ? $service->forTeamWithMembers($team) : ['week' => [], 'members' => []];
+        $week = $weekAndMembers['week'];
+        $members = $weekAndMembers['members'];
         $checkDay = config('whenfree.check_day');   // 週1回の確認の区切り（#57）。画面の説明に使う
         $checkTime = config('whenfree.check_time');
         $cells = $this->cells($week, $members);

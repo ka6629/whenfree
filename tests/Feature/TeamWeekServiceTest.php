@@ -118,6 +118,25 @@ class TeamWeekServiceTest extends TestCase
         $this->assertSame([$members[2]->id], $slot['free']);
     }
 
+    /** 表とメンバーの一覧を一緒に返す時も、表は forTeam() と同じ。一覧は id の順で、「不明」も表と同じ決まり（#55 のレビューで神井さんが挙げた点） */
+    public function test_for_team_with_members_returns_week_and_members(): void
+    {
+        [$team, $members] = $this->teamWithMembers(2);
+        $members[1]->forceFill(['schedule_updated_at' => null])->save(); // 1回も登録していない人＝不明
+        $members[0]->schedules()->create([
+            'type' => 'single',
+            'date' => '2026-10-21',
+            'start_time' => '13:00',
+            'end_time' => '14:00',
+        ]);
+
+        $result = (new TeamWeekService)->forTeamWithMembers($team, '2026-10-19');
+
+        $this->assertSame((new TeamWeekService)->forTeam($team, '2026-10-19'), $result['week']);
+        $this->assertSame([$members[0]->id, $members[1]->id], array_column($result['members'], 'id'));
+        $this->assertSame([false, true], array_column($result['members'], 'unknown'));
+    }
+
     /**
      * Team の Factory はまだ無いので、Team::create() で作ってメンバーをつなぐ。
      * メンバーは「今」予定を更新した人にする（不明にならないように）。

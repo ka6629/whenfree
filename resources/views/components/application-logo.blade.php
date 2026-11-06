@@ -1,0 +1,1 @@
+<span class="text-2xl font-bold tracking-tight text-indigo-600">whenfree</span>

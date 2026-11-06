@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Google カレンダーの予定を読み込むときに使う（Issue #54）
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL').'/google-calendar/callback'),
+    ],
+
 ];
